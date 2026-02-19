@@ -1,0 +1,179 @@
+name: CI — Backend
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "backend/**"
+      - ".github/workflows/ci-backend.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "backend/**"
+      - ".github/workflows/ci-backend.yml"
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  # ── 1. Lint ─────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint & Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: "1.8.3"
+          virtualenvs-in-project: true
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend/.venv
+          key: venv-${{ runner.os }}-${{ hashFiles('backend/pyproject.toml') }}
+
+      - name: Install dependencies
+        run: poetry install --no-root
+
+      - name: Ruff lint
+        run: poetry run ruff check app/ tests/
+
+      - name: Ruff format check
+        run: poetry run ruff format --check app/ tests/
+
+      - name: Mypy type check
+        run: poetry run mypy app/
+
+      - name: Bandit SAST
+        run: poetry run bandit -r app/ -ll --exit-zero
+
+      - name: pip-audit (vulnérabilités dépendances)
+        run: poetry run pip-audit
+
+  # ── 2. Tests ────────────────────────────────────────────────────────────────
+  test:
+    name: Tests & Coverage
+    runs-on: ubuntu-latest
+    needs: lint
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: crm
+          POSTGRES_PASSWORD: crm
+          POSTGRES_DB: crm_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U crm"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: "postgresql+asyncpg://crm:crm@localhost:5432/crm_test"
+      JWT_SECRET_KEY: "ci-test-secret-key-32-chars-minimum"
+      ENVIRONMENT: "local"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: "1.8.3"
+          virtualenvs-in-project: true
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend/.venv
+          key: venv-${{ runner.os }}-${{ hashFiles('backend/pyproject.toml') }}
+
+      - name: Install dependencies
+        run: poetry install --no-root
+
+      - name: Apply migrations
+        run: poetry run alembic upgrade head
+
+      - name: Run tests
+        run: poetry run pytest --cov=app --cov-report=xml --cov-report=term-missing
+
+      - name: Check coverage ≥ 80% (domaine critique)
+        run: |
+          poetry run coverage report --include="app/services/*,app/utils/security.py" --fail-under=80
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          file: backend/coverage.xml
+          flags: backend
+
+  # ── 3. Build Docker ─────────────────────────────────────────────────────────
+  build:
+    name: Docker Build & Scan
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Azure Container Registry
+        if: github.ref == 'refs/heads/main'
+        uses: azure/docker-login@v2
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: false
+          tags: |
+            ${{ secrets.ACR_LOGIN_SERVER }}/api:${{ github.sha }}
+            ${{ secrets.ACR_LOGIN_SERVER }}/api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.ACR_LOGIN_SERVER }}/api:${{ github.sha }}
+          format: table
+          exit-code: 1
+          severity: CRITICAL,HIGH
+
+      - name: Push image to ACR
+        if: github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: true
+          tags: |
+            ${{ secrets.ACR_LOGIN_SERVER }}/api:${{ github.sha }}
+            ${{ secrets.ACR_LOGIN_SERVER }}/api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

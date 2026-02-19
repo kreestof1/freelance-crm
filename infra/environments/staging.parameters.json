@@ -1,0 +1,26 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "env": {
+            "value": "staging"
+        },
+        "location": {
+            "value": "westeurope"
+        },
+        "postgresAdminLogin": {
+            "value": "crmadmin"
+        },
+        "postgresAdminPassword": {
+            "reference": {
+                "keyVault": {
+                    "id": ""
+                },
+                "secretName": "postgres-admin-password"
+            }
+        },
+        "acrLoginServer": {
+            "value": "crmacr.azurecr.io"
+        }
+    }
+}

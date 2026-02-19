@@ -1,0 +1,55 @@
+{
+    "common": {
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "edit": "Edit",
+        "create": "Create",
+        "search": "Search",
+        "loading": "Loading...",
+        "error": "An error occurred",
+        "confirm": "Confirm",
+        "back": "Back",
+        "next": "Next",
+        "previous": "Previous",
+        "close": "Close",
+        "yes": "Yes",
+        "no": "No"
+    },
+    "auth": {
+        "login": "Sign in",
+        "logout": "Sign out",
+        "email": "Email address",
+        "password": "Password",
+        "loginTitle": "Sign in to your CRM",
+        "loginSubtitle": "Manage your leads, contacts and projects",
+        "invalidCredentials": "Invalid email or password",
+        "loginError": "Login error"
+    },
+    "nav": {
+        "dashboard": "Dashboard",
+        "leads": "Leads",
+        "contacts": "Contacts",
+        "companies": "Companies",
+        "deals": "Deals",
+        "projects": "Projects",
+        "activities": "Activities",
+        "documents": "Documents",
+        "settings": "Settings"
+    },
+    "leads": {
+        "title": "Leads",
+        "new": "New lead",
+        "nameLabel": "Name",
+        "emailLabel": "Email",
+        "sourceLabel": "Source",
+        "statusLabel": "Status",
+        "convert": "Convert to contact"
+    },
+    "errors": {
+        "required": "This field is required",
+        "invalidEmail": "Invalid email address",
+        "minLength": "Minimum {{min}} characters",
+        "maxLength": "Maximum {{max}} characters"
+    }
+}

@@ -1,0 +1,11 @@
+services:
+  api:
+    build:
+      target: runtime
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      DEBUG: "true"
+    volumes:
+      - ./backend/app:/app/app # hot-reload source
+      - ./backend/migrations:/app/migrations # alembic migrations
+      - ./backend/alembic.ini:/app/alembic.ini

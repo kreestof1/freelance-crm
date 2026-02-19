@@ -1,0 +1,101 @@
+services:
+  # ── API FastAPI ──────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      target: runtime
+    image: crm-api:dev
+    container_name: crm-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://crm:crm@db:5432/crm"
+      ENVIRONMENT: local
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend/app:/app/app # hot-reload via override
+    networks:
+      - crm-net
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    container_name: crm-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: crm
+      POSTGRES_PASSWORD: crm
+      POSTGRES_DB: crm
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - crm-net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U crm -d crm" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Adminer (UI DB) ───────────────────────────────────────────────────────────
+  adminer:
+    image: adminer:4
+    container_name: crm-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    networks:
+      - crm-net
+
+  # ── Frontend Vite dev server ──────────────────────────────────────────────────
+  front:
+    image: node:22-alpine
+    container_name: crm-front
+    working_dir: /app
+    command: sh -c "corepack enable pnpm && pnpm install && pnpm dev --host"
+    env_file:
+      - .env
+    environment:
+      VITE_API_URL: "http://localhost:8000/api/v1"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - crm-net
+
+  # ── MailHog (capture emails dev) ─────────────────────────────────────────────
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: crm-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # UI web
+    networks:
+      - crm-net
+
+volumes:
+  postgres_data:
+
+
+networks:
+  crm-net:
+    driver: bridge
