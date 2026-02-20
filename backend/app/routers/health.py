@@ -1,6 +1,4 @@
 """Router /health — healthcheck avec trace_id."""
-from __future__ import annotations
-
 import structlog
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse

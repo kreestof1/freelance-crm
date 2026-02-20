@@ -2,7 +2,7 @@
 
 **Auteur** : Christophe Barré  
 **Stack** : FastAPI · React 18 · PostgreSQL 15 · Azure  
-**Sprint courant** : Sprint 0 — Fondations
+**Sprint courant** : Sprint 2 — Pipeline Opportunités
 
 ---
 
@@ -13,10 +13,11 @@
 3. [Démarrage rapide](#3-démarrage-rapide)
 4. [Commandes Make](#4-commandes-make)
 5. [Variables d'environnement](#5-variables-denvironnement)
-6. [Tests](#6-tests)
-7. [Infrastructure Azure](#7-infrastructure-azure)
-8. [CI/CD](#8-cicd)
-9. [Roadmap des sprints](#9-roadmap-des-sprints)
+6. [API Endpoints](#6-api-endpoints)
+7. [Tests](#7-tests)
+8. [Infrastructure Azure](#8-infrastructure-azure)
+9. [CI/CD](#9-cicd)
+10. [Roadmap des sprints](#10-roadmap-des-sprints)
 
 ---
 
@@ -43,23 +44,32 @@ freelance-crm/
 │   │   ├── database.py       # Async SQLAlchemy engine
 │   │   ├── observability.py  # OpenTelemetry (Azure Monitor / OTLP)
 │   │   ├── dependencies.py   # Auth guard, pagination
-│   │   ├── models/           # ORM (11 entités)
-│   │   ├── schemas/          # Pydantic v2 schemas
-│   │   ├── services/         # Logique métier
-│   │   ├── routers/          # Endpoints FastAPI
+│   │   ├── models/           # ORM (11 entités : User, Contact, Company, Lead, Deal…)
+│   │   ├── schemas/          # Pydantic v2 schemas (auth, companies, contacts, leads)
+│   │   ├── services/         # Logique métier (CRUD, fusion contacts, conversion leads, import CSV)
+│   │   ├── routers/          # Endpoints FastAPI (auth, companies, contacts, leads, health)
 │   │   └── utils/            # security, audit, storage
-│   ├── migrations/           # Alembic async
+│   ├── migrations/           # Alembic async (0001 initial, 0002 Sprint 1 indexes)
 │   ├── tests/
+│   │   ├── unit/             # Tests unitaires (conversion lead, fusion contact)
+│   │   └── integration/      # Tests d'intégration (companies, contacts, leads)
 │   ├── Dockerfile
 │   └── pyproject.toml
 ├── frontend/                 # React 18 + TypeScript + Vite
 │   ├── src/
-│   │   ├── api/              # Clients Axios
+│   │   ├── api/              # Clients Axios + hooks TanStack Query (auth, companies, contacts, leads)
 │   │   ├── features/         # Pages par domaine
-│   │   ├── components/       # Composants partagés
-│   │   ├── store/            # Zustand stores
-│   │   ├── router/           # React Router v6
-│   │   ├── i18n/             # Traductions fr/en
+│   │   │   ├── auth/         # LoginPage
+│   │   │   ├── companies/    # CompaniesPage, CompanyDetailPage
+│   │   │   ├── contacts/     # ContactsPage, ContactDetailPage, ImportCsvWizard
+│   │   │   ├── leads/        # LeadsPage (filtres, création, conversion)
+│   │   │   └── dashboard/    # DashboardPage
+│   │   ├── components/
+│   │   │   ├── common/       # DataTable<T>, TagsInput, ConfirmDialog
+│   │   │   └── layout/       # MainLayout, sidebar, topbar
+│   │   ├── store/            # Zustand stores (auth)
+│   │   ├── router/           # React Router v6 (routes lazy)
+│   │   ├── i18n/             # Traductions fr/en (leads, contacts, companies, csvImport)
 │   │   └── theme.ts          # MUI thème dark/light
 │   └── package.json
 ├── infra/                    # Bicep Azure
@@ -163,7 +173,62 @@ Copier `.env.example` vers `.env` et renseigner les valeurs :
 
 ---
 
-## 6. Tests
+## 6. API Endpoints
+
+Tous les endpoints sont préfixés `/api/v1` et requièrent un token JWT Bearer (`Authorization: Bearer <token>`), sauf `/auth/login`.
+
+### Authentification
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `POST` | `/auth/login` | Connexion (retourne `access_token`) |
+| `POST` | `/auth/refresh` | Renouvellement du token (cookie httpOnly) |
+| `POST` | `/auth/logout` | Révocation du refresh token |
+
+### Entreprises
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/companies` | Liste paginée (filtre `search`, `tag`) |
+| `POST` | `/companies` | Créer une entreprise |
+| `GET` | `/companies/{id}` | Détail + nombre de contacts associés |
+| `PUT` | `/companies/{id}` | Mise à jour partielle |
+| `DELETE` | `/companies/{id}` | Suppression douce (`deleted_at`) |
+
+### Contacts
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/contacts` | Liste paginée (filtre `search`, `tag`, `company_id`) |
+| `POST` | `/contacts` | Créer un contact |
+| `GET` | `/contacts/{id}` | Détail |
+| `PUT` | `/contacts/{id}` | Mise à jour partielle |
+| `DELETE` | `/contacts/{id}` | Suppression douce |
+| `POST` | `/contacts/merge` | Fusionner deux contacts (réassigne activités & deals) |
+| `POST` | `/contacts/import/detect` | Détecter l'encodage et le mapping des colonnes CSV |
+| `POST` | `/contacts/import` | Importer un fichier CSV (multipart) |
+
+### Prospects (Leads)
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/leads` | Liste paginée (filtre `search`, `status`, `source`, `tag`) |
+| `POST` | `/leads` | Créer un lead |
+| `GET` | `/leads/{id}` | Détail |
+| `PATCH` | `/leads/{id}` | Mise à jour partielle |
+| `DELETE` | `/leads/{id}` | Suppression douce |
+| `POST` | `/leads/{id}/convert` | Convertir en Contact + Deal (atomique) |
+
+### Santé
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/health` | Liveness check |
+| `GET` | `/health/ready` | Readiness check (DB + dépendances) |
+
+---
+
+## 7. Tests
 
 ### Backend (pytest)
 
@@ -173,10 +238,15 @@ make test-back
 cd backend && poetry run pytest --cov=app tests/ -v
 ```
 
-| Suite | Couverture cible |
-|---|---|
-| Tests unitaires (services, utils) | ≥ 80 % |
-| Tests d'intégration (endpoints) | Tous les endpoints Sprint 0 |
+| Suite | Fichier | Couverture cible |
+|---|---|---|
+| Unitaires — conversion lead | `tests/unit/test_leads_contacts.py` | `services/leads.py` |
+| Unitaires — fusion contacts | `tests/unit/test_leads_contacts.py` | `services/contacts.py` |
+| Intégration — entreprises | `tests/integration/test_companies.py` | CRUD complet + search |
+| Intégration — contacts | `tests/integration/test_contacts.py` | CRUD + merge + CSV import |
+| Intégration — leads | `tests/integration/test_leads.py` | CRUD + conversion + 409 double |
+
+Couverture globale cible : **≥ 80 %**
 
 ### Frontend (Vitest)
 
@@ -196,7 +266,7 @@ cd frontend && npm run test:e2e
 
 ---
 
-## 7. Infrastructure Azure
+## 8. Infrastructure Azure
 
 Tout le provisionnement est décrit en **Bicep** dans `infra/`.
 
@@ -226,7 +296,7 @@ L'API utilise une **Managed Identity** pour accéder au Key Vault (RBAC, rôle `
 
 ---
 
-## 8. CI/CD
+## 9. CI/CD
 
 Trois workflows GitHub Actions dans `.github/workflows/` :
 
@@ -246,17 +316,40 @@ Trois workflows GitHub Actions dans `.github/workflows/` :
 
 ---
 
-## 9. Roadmap des sprints
+## 10. Roadmap des sprints
 
-| Sprint | Thème | Durée estimée |
+| Sprint | Thème | Statut |
 |---|---|---|
-| **Sprint 0** ✅ | Fondations (infra, auth, scaffold) | 2 semaines |
-| **Sprint 1** | Contacts, Entreprises, Leads | 2 semaines |
-| **Sprint 2** | Pipeline Opportunités (Kanban) | 2 semaines |
-| **Sprint 3** | Missions & Documents | 2 semaines |
-| **Sprint 4** | Activités, Rappels, Recherche | 2 semaines |
-| **Sprint 5** | RGPD, Export, Observabilité | 2 semaines |
-| **Beta** | QA, Perf, Polishing | 2 semaines |
+| **Sprint 0** | Fondations (infra, auth, scaffold, Docker, CI/CD, Bicep) | ✅ Terminé |
+| **Sprint 1** | Contacts, Entreprises, Leads — CRUD, fusion, import CSV, conversion | ✅ Terminé |
+| **Sprint 2** | Pipeline Opportunités (Kanban drag-and-drop) | 🔄 En cours |
+| **Sprint 3** | Missions & Documents | ⏳ Planifié |
+| **Sprint 4** | Activités, Rappels, Recherche full-text | ⏳ Planifié |
+| **Sprint 5** | RGPD, Export, Observabilité (Azure Monitor) | ⏳ Planifié |
+| **Beta** | QA, Performance, Polishing | ⏳ Planifié |
+
+### Ce qui a été livré en Sprint 1
+
+**Backend**
+
+- 15 endpoints REST (`/companies`, `/contacts`, `/leads`) avec soft-delete et pagination
+- Fusion atomique de contacts (réassignation des activités et deals)
+- Conversion lead → Contact + Deal en transaction atomique
+- Import CSV : détection automatique de l'encodage (UTF-8/Latin-1) et mapping interactif des colonnes
+- Migration Alembic `0002` : indexes GIN sur `tags[]` + indexes fonctionnels `lower(name)`
+- Tests unitaires et d'intégration couvrant tous les flux critiques
+
+**Frontend**
+
+- Pages complètes : `LeadsPage`, `ContactsPage`, `CompaniesPage` (remplacent les stubs)
+- Pages de détail : `CompanyDetailPage`, `ContactDetailPage`
+- Composants partagés : `DataTable<T>` (pagination, tri, sélection), `TagsInput`, `ConfirmDialog`
+- Assistant import CSV 3 étapes : upload → mapping colonnes → résultat
+- Dialog de conversion lead (titre deal, montant, étape)
+- Dialog de fusion contacts (sélection multiple dans la DataTable)
+- Hooks TanStack Query pour toutes les ressources (`useLeads`, `useContacts`, `useCompanies`, `useConvertLead`, `useMergeContacts`, `useImportContactsCsv`…)
+- Clés i18n `fr` / `en` pour `leads`, `contacts`, `companies`, `csvImport`
+- Routes lazy `/contacts/:id` et `/companies/:id`
 
 ---
 
