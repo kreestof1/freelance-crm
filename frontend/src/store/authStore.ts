@@ -11,8 +11,9 @@ interface User {
 interface AuthState {
     user: User | null
     accessToken: string | null
+    refreshToken: string | null
     isAuthenticated: boolean
-    setTokens: (accessToken: string, user: User) => void
+    setTokens: (accessToken: string, user: User, refreshToken?: string) => void
     clearAuth: () => void
 }
 
@@ -21,18 +22,28 @@ export const useAuthStore = create<AuthState>()(
         (set) => ({
             user: null,
             accessToken: null,
+            refreshToken: null,
             isAuthenticated: false,
 
-            setTokens: (accessToken: string, user: User) =>
-                set({ accessToken, user, isAuthenticated: true }),
+            setTokens: (accessToken: string, user: User, refreshToken?: string) =>
+                set((s) => ({
+                    accessToken,
+                    user,
+                    isAuthenticated: true,
+                    refreshToken: refreshToken ?? s.refreshToken,
+                })),
 
             clearAuth: () =>
-                set({ accessToken: null, user: null, isAuthenticated: false }),
+                set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false }),
         }),
         {
             name: 'crm-auth',
-            // Ne persister que l'utilisateur, pas le access token (sécurité)
-            partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
+            // Persister le refresh token (access token est court-livé, non persisté)
+            partialize: (state) => ({
+                user: state.user,
+                isAuthenticated: state.isAuthenticated,
+                refreshToken: state.refreshToken,
+            }),
         },
     ),
 )

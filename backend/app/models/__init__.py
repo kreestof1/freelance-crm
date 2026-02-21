@@ -8,6 +8,7 @@ from app.models.document import Document
 from app.models.lead import Lead
 from app.models.milestone import Milestone
 from app.models.mixins import SoftDeleteMixin, TimestampMixin, UUIDMixin
+from app.models.pipeline_stage import PipelineStage
 from app.models.project import Project
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
@@ -21,6 +22,7 @@ __all__ = [
     "Document",
     "Lead",
     "Milestone",
+    "PipelineStage",
     "Project",
     "RefreshToken",
     "SoftDeleteMixin",

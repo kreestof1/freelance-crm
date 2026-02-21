@@ -1,9 +1,10 @@
 """Schémas Pydantic Auth."""
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    # Utilise str (pas EmailStr) pour accepter les domaines locaux (.local, .test…)
+    email: str = Field(max_length=320)
     password: str = Field(min_length=8, max_length=128)
 
 
@@ -19,8 +20,13 @@ class RefreshRequest(BaseModel):
 
 class UserOut(BaseModel):
     id: str
-    email: EmailStr
+    email: str
     name: str
     role: str
 
     model_config = {"from_attributes": True}
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_uuid(cls, v: object) -> str:
+        return str(v)

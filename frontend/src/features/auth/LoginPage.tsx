@@ -18,7 +18,8 @@ import { authApi } from '@/api/auth'
 import { useAuthStore } from '@/store/authStore'
 
 const loginSchema = z.object({
-    email: z.string().email('Email invalide'),
+    // Accepte les domaines locaux (.local, .test…) rejetés par z.string().email()
+    email: z.string().min(1, 'Email requis').regex(/.+@.+\..+/, 'Email invalide'),
     password: z.string().min(8, 'Minimum 8 caractères'),
 })
 
@@ -44,9 +45,9 @@ export function LoginPage() {
             const loginResp = await authApi.login(data)
             const { access_token } = loginResp.data
 
-            // Récupérer les infos utilisateur
-            const meResp = await authApi.me()
-            setTokens(access_token, meResp.data)
+            // Passer le token directement : le store n'est pas encore alimenté
+            const meResp = await authApi.me(access_token)
+            setTokens(access_token, meResp.data, loginResp.data.refresh_token)
 
             // Stocker le refresh token dans un cookie httpOnly via le backend
             navigate('/', { replace: true })

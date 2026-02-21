@@ -2,7 +2,7 @@
 
 **Auteur** : Christophe Barré  
 **Stack** : FastAPI · React 18 · PostgreSQL 15 · Azure  
-**Sprint courant** : Sprint 2 — Pipeline Opportunités
+**Sprint courant** : Sprint 3 — Missions & Documents
 
 ---
 
@@ -44,12 +44,12 @@ freelance-crm/
 │   │   ├── database.py       # Async SQLAlchemy engine
 │   │   ├── observability.py  # OpenTelemetry (Azure Monitor / OTLP)
 │   │   ├── dependencies.py   # Auth guard, pagination
-│   │   ├── models/           # ORM (11 entités : User, Contact, Company, Lead, Deal…)
-│   │   ├── schemas/          # Pydantic v2 schemas (auth, companies, contacts, leads)
-│   │   ├── services/         # Logique métier (CRUD, fusion contacts, conversion leads, import CSV)
-│   │   ├── routers/          # Endpoints FastAPI (auth, companies, contacts, leads, health)
+│   │   ├── models/           # ORM (12 entités : User, Contact, Company, Lead, Deal, PipelineStage…)
+│   │   ├── schemas/          # Pydantic v2 (auth, companies, contacts, leads, deals, pipeline, dashboard)
+│   │   ├── services/         # Logique métier (CRUD, fusion, conversion, import CSV, deals, dashboard)
+│   │   ├── routers/          # Endpoints FastAPI (auth, companies, contacts, leads, deals, pipeline, dashboard, health)
 │   │   └── utils/            # security, audit, storage
-│   ├── migrations/           # Alembic async (0001 initial, 0002 Sprint 1 indexes)
+│   ├── migrations/           # Alembic async (0001 initial, 0002 Sprint 1 indexes, 0003 Sprint 2 pipeline+deals)
 │   ├── tests/
 │   │   ├── unit/             # Tests unitaires (conversion lead, fusion contact)
 │   │   └── integration/      # Tests d'intégration (companies, contacts, leads)
@@ -57,13 +57,14 @@ freelance-crm/
 │   └── pyproject.toml
 ├── frontend/                 # React 18 + TypeScript + Vite
 │   ├── src/
-│   │   ├── api/              # Clients Axios + hooks TanStack Query (auth, companies, contacts, leads)
+│   │   ├── api/              # Clients Axios + hooks TanStack Query (auth, companies, contacts, leads, deals, dashboard)
 │   │   ├── features/         # Pages par domaine
 │   │   │   ├── auth/         # LoginPage
 │   │   │   ├── companies/    # CompaniesPage, CompanyDetailPage
 │   │   │   ├── contacts/     # ContactsPage, ContactDetailPage, ImportCsvWizard
 │   │   │   ├── leads/        # LeadsPage (filtres, création, conversion)
-│   │   │   └── dashboard/    # DashboardPage
+│   │   │   ├── deals/        # DealsPage (Kanban DnD), DealCard, DealSlideOver
+│   │   │   └── dashboard/    # DashboardPage (KPIs + Recharts prévisions)
 │   │   ├── components/
 │   │   │   ├── common/       # DataTable<T>, TagsInput, ConfirmDialog
 │   │   │   └── layout/       # MainLayout, sidebar, topbar
@@ -96,7 +97,7 @@ freelance-crm/
 | Python | 3.12 |
 | Poetry | 1.8+ |
 | Node.js | 22 LTS |
-| Make | GNU Make |
+| Make | GNU Make (Windows : `winget install ezwinports.make`) |
 
 ### Lancement local
 
@@ -219,6 +220,35 @@ Tous les endpoints sont préfixés `/api/v1` et requièrent un token JWT Bearer 
 | `DELETE` | `/leads/{id}` | Suppression douce |
 | `POST` | `/leads/{id}/convert` | Convertir en Contact + Deal (atomique) |
 
+### Opportunités (Deals)
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/deals` | Liste paginée (filtre `stage`, `company_id`, `close_before`) |
+| `POST` | `/deals` | Créer un deal |
+| `GET` | `/deals/{id}` | Détail |
+| `PATCH` | `/deals/{id}` | Mise à jour partielle (verrouillé si `Gagné`) |
+| `DELETE` | `/deals/{id}` | Suppression douce |
+| `POST` | `/deals/{id}/move` | Déplacer dans le pipeline (Kanban) |
+
+> **Règle métier** : un deal déplacé en `Gagné` est automatiquement verrouillé (`is_locked=true`, `probability=100`). Modifer `amount` ou `expected_close` sur un deal verrouillé retourne HTTP 422.
+
+### Pipeline
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/pipeline/stages` | Liste les étapes configurées (auto-seed si vide) |
+| `PUT` | `/pipeline/stages` | Remplace la configuration complète du pipeline |
+
+**Étapes par défaut** : Découverte (10%) → Qualification (25%) → Proposition (50%) → Négociation (75%) → Gagné (100%) → Perdu (0%)
+
+### Tableau de bord
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/dashboard/pipeline` | Agrégats par étape (count, total, pondéré) |
+| `GET` | `/dashboard/forecast` | Prévisions mois courant + 3 mois suivants |
+
 ### Santé
 
 | Méthode | Endpoint | Description |
@@ -245,6 +275,7 @@ cd backend && poetry run pytest --cov=app tests/ -v
 | Intégration — entreprises | `tests/integration/test_companies.py` | CRUD complet + search |
 | Intégration — contacts | `tests/integration/test_contacts.py` | CRUD + merge + CSV import |
 | Intégration — leads | `tests/integration/test_leads.py` | CRUD + conversion + 409 double |
+| Intégration — deals | `tests/integration/test_deals.py` | CRUD, move, verrouillage Gagné, weighted_amount, dashboard |
 
 Couverture globale cible : **≥ 80 %**
 
@@ -322,11 +353,40 @@ Trois workflows GitHub Actions dans `.github/workflows/` :
 |---|---|---|
 | **Sprint 0** | Fondations (infra, auth, scaffold, Docker, CI/CD, Bicep) | ✅ Terminé |
 | **Sprint 1** | Contacts, Entreprises, Leads — CRUD, fusion, import CSV, conversion | ✅ Terminé |
-| **Sprint 2** | Pipeline Opportunités (Kanban drag-and-drop) | 🔄 En cours |
-| **Sprint 3** | Missions & Documents | ⏳ Planifié |
+| **Sprint 2** | Pipeline Opportunités (Kanban drag-and-drop) | ✅ Terminé |
+| **Sprint 3** | Missions & Documents | 🔄 En cours |
 | **Sprint 4** | Activités, Rappels, Recherche full-text | ⏳ Planifié |
 | **Sprint 5** | RGPD, Export, Observabilité (Azure Monitor) | ⏳ Planifié |
 | **Beta** | QA, Performance, Polishing | ⏳ Planifié |
+
+### Ce qui a été livré en Sprint 2
+
+**Backend**
+
+- Modèle `PipelineStage` avec 6 étapes par défaut seedées automatiquement
+- 6 endpoints `/deals` : CRUD complet avec `weighted_amount` calculé, soft-delete
+- `POST /deals/{id}/move` : transition Kanban avec verrouillage automatique sur « Gagné »
+- `GET/PUT /pipeline/stages` : configuration des étapes
+- `GET /dashboard/pipeline` et `/dashboard/forecast` : agrégats et prévisions 4 mois
+- Migration Alembic `0003` : table `pipeline_stages`, indexes sur `deals`
+- 14 tests d'intégration (CRUD, verrouillage, montant pondéré, dashboard)
+
+**Frontend**
+
+- `DealsPage` : board Kanban complet avec `@dnd-kit` (colonnes droppables, DragOverlay, dialogue création rapide)
+- `DealCard` : carte draggable (probabilité, montant pondéré, verrouillage, tags, date d'échéance)
+- `DealSlideOver` : drawer d'édition (React Hook Form + Zod, slider probabilité, suppression avec confirmation)
+- `DashboardPage` : KPI cards + barre de progression par étape + BarChart Recharts (prévisions 4 mois)
+- Hooks TanStack Query : `useDeals`, `usePipelineStages`, `useMoveDeal`, `usePatchDeal`, `useCreateDeal`, `useDeleteDeal`, `usePipelineDashboard`, `useForecastDashboard`
+- `AuthInitializer` : renouvellement silencieux du token au démarrage (évite les 401 après rechargement)
+
+**Corrections techniques**
+
+- CORS : remplacement de `list[AnyHttpUrl]` par `list[str]` (Pydantic v2 ajoutait un `/` final)
+- Auth : `EmailStr` remplacé par `str` dans `LoginRequest` et `UserOut` (domaines `.local` rejetés)
+- `UserOut.id` : ajout d'un `field_validator` pour coercition `UUID → str`
+
+---
 
 ### Ce qui a été livré en Sprint 1
 

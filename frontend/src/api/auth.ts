@@ -23,9 +23,12 @@ export const authApi = {
     login: (payload: LoginPayload) =>
         apiClient.post<TokenResponse>('/auth/login', payload),
 
-    refresh: () =>
-        apiClient.post<TokenResponse>('/auth/refresh'),
+    refresh: (refreshToken: string) =>
+        apiClient.post<TokenResponse>('/auth/refresh', { refresh_token: refreshToken }),
 
-    me: () =>
-        apiClient.get<UserResponse>('/auth/me'),
+    // token optionnel : utile juste après le login, avant que le store soit alimenté
+    me: (token?: string) =>
+        apiClient.get<UserResponse>('/auth/me', {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        }),
 }

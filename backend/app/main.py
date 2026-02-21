@@ -16,7 +16,7 @@ from slowapi.util import get_remote_address
 
 from app.config import get_settings
 from app.database import engine, Base
-from app.routers import auth, companies, contacts, health, leads
+from app.routers import auth, companies, contacts, dashboard, deals, health, leads, pipeline
 from app.observability import configure_telemetry
 
 logger = structlog.get_logger(__name__)
@@ -104,6 +104,9 @@ def create_app() -> FastAPI:
     app.include_router(companies.router, prefix=settings.api_v1_prefix + "/companies", tags=["companies"])
     app.include_router(contacts.router, prefix=settings.api_v1_prefix + "/contacts", tags=["contacts"])
     app.include_router(leads.router, prefix=settings.api_v1_prefix + "/leads", tags=["leads"])
+    app.include_router(deals.router, prefix=settings.api_v1_prefix + "/deals", tags=["deals"])
+    app.include_router(pipeline.router, prefix=settings.api_v1_prefix + "/pipeline", tags=["pipeline"])
+    app.include_router(dashboard.router, prefix=settings.api_v1_prefix + "/dashboard", tags=["dashboard"])
 
     return app
 

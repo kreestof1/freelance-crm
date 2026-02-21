@@ -46,9 +46,15 @@ apiClient.interceptors.response.use(
 
             isRefreshing = true
             try {
-                const refreshResp = await axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true })
-                const { access_token, ...userData } = refreshResp.data
-                useAuthStore.getState().setTokens(access_token, userData)
+                const refreshToken = useAuthStore.getState().refreshToken
+                if (!refreshToken) throw new Error('no_refresh_token')
+                const refreshResp = await axios.post(
+                    `${BASE_URL}/auth/refresh`,
+                    { refresh_token: refreshToken },
+                    { withCredentials: true },
+                )
+                const { access_token, refresh_token } = refreshResp.data
+                useAuthStore.getState().setTokens(access_token, useAuthStore.getState().user!, refresh_token)
 
                 // Débloquer les requêtes en attente
                 refreshQueue.forEach((cb) => cb(access_token))

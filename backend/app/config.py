@@ -4,7 +4,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import AnyHttpUrl, Field, field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -38,14 +38,24 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
 
     # ── CORS ────────────────────────────────────────────────────────────────────
-    allowed_origins: list[AnyHttpUrl] = ["http://localhost:5173"]  # type: ignore[assignment]
+    # list[str] et non list[AnyHttpUrl] : Pydantic v2 normalise AnyHttpUrl en
+    # ajoutant un slash final (http://localhost:5173/) ce qui casse le matching
+    # CORS (le navigateur envoie Origin: http://localhost:5173 sans slash).
+    allowed_origins: list[str] = ["http://localhost:5173"]
 
     @field_validator("allowed_origins", mode="before")
     @classmethod
-    def split_origins(cls, v: str | list[str]) -> list[str]:
+    def parse_origins(cls, v: str | list[str]) -> list[str]:
         if isinstance(v, str):
-            return [o.strip() for o in v.split(",")]
-        return v
+            stripped = v.strip()
+            # JSON array : '["http://...","http://..."]'
+            if stripped.startswith("["):
+                import json
+                return [o.rstrip("/") for o in json.loads(stripped)]
+            # Valeurs séparées par virgule
+            return [o.strip().rstrip("/") for o in stripped.split(",") if o.strip()]
+        # Déjà une liste (valeur par défaut)
+        return [o.rstrip("/") for o in v]
 
     # ── Rate limiting ───────────────────────────────────────────────────────────
     rate_limit_auth: int = 60       # req/min sur /auth/*
