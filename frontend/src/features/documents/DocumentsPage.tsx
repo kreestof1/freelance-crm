@@ -70,7 +70,7 @@ export function DocumentsPage() {
 
     const columns: ColumnDef<DocumentOut>[] = [
         {
-            id: 'filename',
+            key: 'filename',
             header: t('documents.filenameLabel'),
             render: (row) => (
                 <Stack direction="row" alignItems="center" gap={1}>
@@ -89,7 +89,7 @@ export function DocumentsPage() {
             ),
         },
         {
-            id: 'type',
+            key: 'type',
             header: t('documents.typeLabel'),
             render: (row) => (
                 <Chip
@@ -109,7 +109,7 @@ export function DocumentsPage() {
             ),
         },
         {
-            id: 'related',
+            key: 'related',
             header: t('documents.relatedLabel'),
             render: (row) =>
                 row.related_type ? (
@@ -126,7 +126,7 @@ export function DocumentsPage() {
                 ),
         },
         {
-            id: 'date',
+            key: 'date',
             header: 'Date',
             render: (row) => (
                 <Typography variant="body2" color="text.secondary">
@@ -135,7 +135,7 @@ export function DocumentsPage() {
             ),
         },
         {
-            id: 'actions',
+            key: 'actions',
             header: '',
             render: (row) => (
                 <Stack direction="row" justifyContent="flex-end" gap={0.5}>

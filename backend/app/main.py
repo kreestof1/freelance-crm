@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 import structlog
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -16,8 +17,9 @@ from slowapi.util import get_remote_address
 
 from app.config import get_settings
 from app.database import engine, Base
-from app.routers import auth, companies, contacts, dashboard, deals, documents, health, leads, pipeline, projects
+from app.routers import auth, companies, contacts, dashboard, deals, documents, health, leads, pipeline, projects, activities, search
 from app.observability import configure_telemetry
+from app.services.reminder import send_pending_reminders
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
@@ -30,7 +32,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Initialisation et nettoyage de l'application."""
     logger.info("startup", environment=settings.environment)
     configure_telemetry()
+
+    # ── Worker de rappels (toutes les 5 minutes) ──────────────────────────────
+    scheduler = AsyncIOScheduler(timezone="UTC")
+    scheduler.add_job(
+        send_pending_reminders,
+        trigger="interval",
+        minutes=5,
+        id="reminder_worker",
+        replace_existing=True,
+        misfire_grace_time=60,
+    )
+    scheduler.start()
+    logger.info("scheduler_started")
+
     yield
+
+    scheduler.shutdown(wait=False)
     await engine.dispose()
     logger.info("shutdown")
 
@@ -109,6 +127,8 @@ def create_app() -> FastAPI:
     app.include_router(dashboard.router, prefix=settings.api_v1_prefix + "/dashboard", tags=["dashboard"])
     app.include_router(projects.router, prefix=settings.api_v1_prefix + "/projects", tags=["projects"])
     app.include_router(documents.router, prefix=settings.api_v1_prefix + "/documents", tags=["documents"])
+    app.include_router(activities.router, prefix=settings.api_v1_prefix + "/activities", tags=["activities"])
+    app.include_router(search.router, prefix=settings.api_v1_prefix + "/search", tags=["search"])
 
     return app
 

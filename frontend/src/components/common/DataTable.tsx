@@ -30,20 +30,25 @@ export interface ColumnDef<T> {
 interface DataTableProps<T extends { id: string }> {
     columns: ColumnDef<T>[]
     rows: T[]
-    total: number
-    page: number           // 0-based (MUI convention)
-    pageSize: number
+    /** Total row count for pagination. Omit to hide the pagination bar. */
+    total?: number
+    /** Current 0-based page index. Required when `total` is provided. */
+    page?: number
+    /** Rows per page. Required when `total` is provided. */
+    pageSize?: number
     loading?: boolean
     sortBy?: string
     sortDir?: SortDirection
     selectable?: boolean
     selected?: string[]
-    onPageChange: (page: number) => void
-    onPageSizeChange: (pageSize: number) => void
+    onPageChange?: (page: number) => void
+    onPageSizeChange?: (pageSize: number) => void
     onSort?: (key: string, dir: SortDirection) => void
     onSelectionChange?: (ids: string[]) => void
     onRowClick?: (row: T) => void
     emptyMessage?: string
+    /** Used as a key accessor when `id` is not present on the row type. */
+    rowKey?: string
 }
 
 const ROWS_PER_PAGE_OPTIONS = [10, 25, 50]
@@ -53,8 +58,8 @@ export function DataTable<T extends { id: string }>({
     columns,
     rows,
     total,
-    page,
-    pageSize,
+    page = 0,
+    pageSize = 10,
     loading = false,
     sortBy,
     sortDir = 'asc',
@@ -67,6 +72,8 @@ export function DataTable<T extends { id: string }>({
     onRowClick,
     emptyMessage = 'Aucune donnée',
 }: DataTableProps<T>) {
+    // Pagination is only shown when the caller explicitly provides `total`
+    const showPagination = total !== undefined
     const handleSort = (key: string) => {
         if (!onSort) return
         const newDir: SortDirection =
@@ -189,19 +196,21 @@ export function DataTable<T extends { id: string }>({
             </TableContainer>
 
             <Box>
-                <TablePagination
-                    component="div"
-                    count={total}
-                    page={page}
-                    rowsPerPage={pageSize}
-                    rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
-                    onPageChange={(_e, p) => onPageChange(p)}
-                    onRowsPerPageChange={(e) => onPageSizeChange(Number(e.target.value))}
-                    labelRowsPerPage="Lignes / page"
-                    labelDisplayedRows={({ from, to, count }) =>
-                        `${from}–${to} sur ${count !== -1 ? count : `plus de ${to}`}`
-                    }
-                />
+                {showPagination && (
+                    <TablePagination
+                        component="div"
+                        count={total!}
+                        page={page}
+                        rowsPerPage={pageSize}
+                        rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+                        onPageChange={(_e, p) => onPageChange?.(p)}
+                        onRowsPerPageChange={(e) => onPageSizeChange?.(Number(e.target.value))}
+                        labelRowsPerPage="Lignes / page"
+                        labelDisplayedRows={({ from, to, count }) =>
+                            `${from}–${to} sur ${count !== -1 ? count : `plus de ${to}`}`
+                        }
+                    />
+                )}
             </Box>
         </Paper>
     )

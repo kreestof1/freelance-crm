@@ -7,7 +7,6 @@ from datetime import date, timedelta
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.models.company import Company
 from app.models.contact import Contact
@@ -47,11 +46,12 @@ async def _enrich(db: AsyncSession, project: Project) -> ProjectOut:
         row = await db.execute(select(Deal.title).where(Deal.id == project.deal_id))
         deal_title = row.scalar_one_or_none()
 
-    # Charger les jalons
-    rows = await db.execute(
-        select(Milestone).where(Milestone.project_id == project.id).order_by(Milestone.due_date.asc().nulls_last())
+    # Charger les jalons (refresh garantit que la relation est disponible en mémoire)
+    await db.refresh(project, attribute_names=["milestones"])
+    milestones = sorted(
+        project.milestones,
+        key=lambda m: (m.due_date is None, m.due_date),
     )
-    milestones = list(rows.scalars())
 
     milestones_done = sum(1 for m in milestones if m.status == "Done")
     today = date.today()

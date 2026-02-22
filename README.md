@@ -2,7 +2,7 @@
 
 **Auteur** : Christophe Barré  
 **Stack** : FastAPI · React 18 · PostgreSQL 15 · Azure  
-**Sprint courant** : Sprint 4 — Activités & Rappels
+**Sprint courant** : Sprint 5 — RGPD, Export & Observabilité
 
 ---
 
@@ -388,9 +388,32 @@ Trois workflows GitHub Actions dans `.github/workflows/` :
 | **Sprint 1** | Contacts, Entreprises, Leads — CRUD, fusion, import CSV, conversion | ✅ Terminé |
 | **Sprint 2** | Pipeline Opportunités (Kanban drag-and-drop) | ✅ Terminé |
 | **Sprint 3** | Missions & Documents | ✅ Terminé |
-| **Sprint 4** | Activités, Rappels, Recherche full-text | ⏳ Planifié |
+| **Sprint 4** | Activités, Rappels, Recherche full-text | ✅ Terminé |
 | **Sprint 5** | RGPD, Export, Observabilité (Azure Monitor) | ⏳ Planifié |
 | **Beta** | QA, Performance, Polishing | ⏳ Planifié |
+
+### Ce qui a été livré en Sprint 4
+
+**Backend**
+
+- Schémas Pydantic v2 : `ActivityCreate/Patch/Out/List`, `SearchHit/SearchResult`
+- Service `activities` : CRUD complet, enrichissement `related_label` (nom contact/deal/projet), filtres multi-critères (type, entity liée, plage de dates)
+- Service `search` : recherche PostgreSQL full-text (`to_tsvector('french')` + `plainto_tsquery`) avec fallback ILIKE sur 5 entités (contacts, entreprises, leads, deals, projets)
+- Service `reminder` : worker de rappels e-mail (SMTP/MailHog en dev), email HTML, marque `reminder_sent=True` après envoi
+- 5 endpoints `/activities` (CRUD + `GET /upcoming`) + `GET /search?q=&types=&limit=`
+- **APScheduler `AsyncIOScheduler`** intégré dans le lifespan FastAPI — job toutes les 5 min
+- Migration Alembic `0005` : 4 index activités (related, when, reminder, soft-delete) + 5 index GIN full-text (`WHERE deleted_at IS NULL`)
+- 14 tests d’intégration `test_activities.py` + 9 tests `test_search.py`
+
+**Frontend**
+
+- `ActivitiesPage` : timeline groupée par date, filtres par type (Appel/Email/Tâche/RDV), icônes colorées, badge rappel (AlarmIcon), dialogue création/édition (react-hook-form + zod), confirmation de suppression
+- `GlobalSearch` : overlay Ctrl+K, debounce 300 ms, résultats groupés par type, **navigation clavier complète** (↑↓ sélection, ↵ ouvrir, Echap fermer), clic navigue vers l’entité
+- `NotificationCenter` : cloche dans l’AppBar, badge rouge (nb de rappels à venir), popover liste rappels, lien vers `/activities`
+- Hooks TanStack Query : `useActivities`, `useUpcomingActivities`, `useActivity`, `useCreateActivity`, `usePatchActivity`, `useDeleteActivity`, `useSearch`
+- Clefs i18n `fr`/`en` : sections `activities` (types inclus), `search` (types entité inclus), `notifications`
+
+---
 
 ### Ce qui a été livré en Sprint 3
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import {
     AppBar,
@@ -25,8 +25,11 @@ import WorkIcon from '@mui/icons-material/Work'
 import EventNoteIcon from '@mui/icons-material/EventNote'
 import FolderIcon from '@mui/icons-material/Folder'
 import LogoutIcon from '@mui/icons-material/Logout'
+import SearchIcon from '@mui/icons-material/Search'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
+import { GlobalSearch } from '@/components/common/GlobalSearch'
+import { NotificationCenter } from '@/components/common/NotificationCenter'
 
 const DRAWER_WIDTH = 240
 
@@ -46,8 +49,20 @@ export function MainLayout() {
     const theme = useTheme()
     const isMobile = useMediaQuery(theme.breakpoints.down('md'))
     const [mobileOpen, setMobileOpen] = useState(false)
+    const [searchOpen, setSearchOpen] = useState(false)
     const clearAuth = useAuthStore((s) => s.clearAuth)
     const navigate = useNavigate()
+
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault()
+                setSearchOpen(true)
+            }
+        }
+        window.addEventListener('keydown', handler)
+        return () => window.removeEventListener('keydown', handler)
+    }, [])
 
     const handleLogout = () => {
         clearAuth()
@@ -108,9 +123,15 @@ export function MainLayout() {
                     >
                         <MenuIcon />
                     </IconButton>
-                    <Typography variant="h6" sx={{ ml: 1 }}>
+                    <Typography variant="h6" sx={{ ml: 1, flexGrow: 1 }}>
                         CRM Freelance
                     </Typography>
+                    <Tooltip title="Rechercher (Ctrl+K)">
+                        <IconButton color="inherit" onClick={() => setSearchOpen(true)}>
+                            <SearchIcon />
+                        </IconButton>
+                    </Tooltip>
+                    <NotificationCenter />
                 </Toolbar>
             </AppBar>
 
@@ -143,6 +164,8 @@ export function MainLayout() {
             >
                 <Outlet />
             </Box>
+
+            <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
         </Box>
     )
 }

@@ -77,7 +77,16 @@ export function ProjectsPage() {
 
     const { control, handleSubmit, reset, formState: { errors } } = useForm<CreateForm>({
         resolver: zodResolver(createSchema),
-        defaultValues: { status: 'Planifié', rate_type: 'tjm' },
+        defaultValues: {
+            status: 'Planifié',
+            rate_type: 'tjm',
+            title: '',
+            rate_value: '',
+            budget_amount: '',
+            start_date: '',
+            end_date: '',
+            notes: '',
+        },
     })
 
     const filtered = (data?.items ?? []).filter((p) =>

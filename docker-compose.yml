@@ -78,7 +78,8 @@ services:
     env_file:
       - .env
     environment:
-      VITE_API_URL: "http://localhost:8000/api/v1"
+      # Proxy target for Vite → API container (Docker service name)
+      VITE_API_PROXY_TARGET: "http://api:8000"
     ports:
       - "5173:5173"
     volumes:

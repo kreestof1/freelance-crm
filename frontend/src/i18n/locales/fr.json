@@ -159,5 +159,43 @@
             "Proposition": "Proposition",
             "Contrat": "Contrat",
             "Autre": "Autre"
-        }    }
+        }
+    },
+    "activities": {
+        "title": "Activités",
+        "new": "Nouvelle activité",
+        "edit": "Modifier l'activité",
+        "typeLabel": "Type",
+        "whenLabel": "Date / heure",
+        "durationLabel": "Durée (min)",
+        "outcomeLabel": "Résultat",
+        "notesLabel": "Notes",
+        "reminderLabel": "Rappel",
+        "deleteConfirm": "Supprimer l'activité",
+        "empty": "Aucune activité",
+        "allTypes": "Tous les types",
+        "type": {
+            "Appel": "Appel",
+            "Email": "Email",
+            "Tâche": "Tâche",
+            "RDV": "RDV"
+        }
+    },
+    "search": {
+        "placeholder": "Rechercher...",
+        "noResults": "Aucun résultat",
+        "title": "Recherche",
+        "type": {
+            "contact": "Contact",
+            "company": "Entreprise",
+            "lead": "Prospect",
+            "deal": "Opportunité",
+            "project": "Mission"
+        }
+    },
+    "notifications": {
+        "title": "Rappels à venir",
+        "empty": "Aucun rappel à venir",
+        "seeAll": "Voir toutes les activités"
+    }
 }

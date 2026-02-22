@@ -161,5 +161,42 @@
             "Contrat": "Contract",
             "Autre": "Other"
         }
+    },
+    "activities": {
+        "title": "Activities",
+        "new": "New activity",
+        "edit": "Edit activity",
+        "typeLabel": "Type",
+        "whenLabel": "Date / time",
+        "durationLabel": "Duration (min)",
+        "outcomeLabel": "Outcome",
+        "notesLabel": "Notes",
+        "reminderLabel": "Reminder",
+        "deleteConfirm": "Delete activity",
+        "empty": "No activities",
+        "allTypes": "All types",
+        "type": {
+            "Appel": "Call",
+            "Email": "Email",
+            "Tâche": "Task",
+            "RDV": "Meeting"
+        }
+    },
+    "search": {
+        "placeholder": "Search...",
+        "noResults": "No results found",
+        "title": "Search",
+        "type": {
+            "contact": "Contact",
+            "company": "Company",
+            "lead": "Lead",
+            "deal": "Deal",
+            "project": "Project"
+        }
+    },
+    "notifications": {
+        "title": "Upcoming reminders",
+        "empty": "No upcoming reminders",
+        "seeAll": "View all activities"
     }
 }

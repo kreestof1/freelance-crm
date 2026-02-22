@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, date
 from typing import Any
 
 import structlog
@@ -10,6 +11,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.audit_log import AuditLog
 
 logger = structlog.get_logger(__name__)
+
+
+def _to_json_safe(obj: Any) -> Any:
+    """Convertit récursivement un objet en types JSON-sérialisables."""
+    if isinstance(obj, dict):
+        return {k: _to_json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_to_json_safe(v) for v in obj]
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, date):
+        return obj.isoformat()
+    if isinstance(obj, uuid.UUID):
+        return str(obj)
+    return obj
 
 
 async def write_audit(
@@ -30,7 +46,7 @@ async def write_audit(
         action=action,
         actor_id=actor_id,
         actor_email=actor_email,
-        diff_json=diff,
+        diff_json=_to_json_safe(diff) if diff is not None else None,
         note=note,
     )
     db.add(entry)
