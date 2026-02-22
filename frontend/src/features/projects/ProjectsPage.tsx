@@ -20,6 +20,7 @@ import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import DeleteIcon from '@mui/icons-material/Delete'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import DownloadIcon from '@mui/icons-material/Download'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -28,6 +29,7 @@ import { useTranslation } from 'react-i18next'
 
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { exportApi } from '@/api/export'
 import {
     useProjects,
     useCreateProject,
@@ -219,9 +221,19 @@ export function ProjectsPage() {
                 <Typography variant="h5" fontWeight={700}>
                     {t('projects.title')}
                 </Typography>
-                <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
-                    {t('projects.new')}
-                </Button>
+                <Stack direction="row" spacing={1}>
+                    <Button
+                        variant="outlined"
+                        startIcon={<DownloadIcon />}
+                        onClick={() => exportApi.projects()}
+                        size="small"
+                    >
+                        Export CSV
+                    </Button>
+                    <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
+                        {t('projects.new')}
+                    </Button>
+                </Stack>
             </Stack>
 
             {/* Filtres */}

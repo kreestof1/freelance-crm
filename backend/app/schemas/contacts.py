@@ -1,6 +1,7 @@
 """Schémas Pydantic — Contacts."""
 import uuid
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -42,6 +43,10 @@ class ContactOut(ContactBase):
     created_at: datetime
     updated_at: datetime
     company_name: str | None = None
+    anonymized_at: datetime | None = None
+    anonymized_stats: dict[str, Any] | None = None
+    # Override: anonymized contacts store a non-routable address — skip email validation on output
+    email: str | None = None  # type: ignore[assignment]
 
     model_config = {"from_attributes": True}
 

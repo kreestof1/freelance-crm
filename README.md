@@ -2,7 +2,7 @@
 
 **Auteur** : Christophe Barré  
 **Stack** : FastAPI · React 18 · PostgreSQL 15 · Azure  
-**Sprint courant** : Sprint 5 — RGPD, Export & Observabilité
+**Sprint courant** : Beta — QA, Performance, Polishing
 
 ---
 
@@ -47,9 +47,10 @@ freelance-crm/
 │   │   ├── models/           # ORM (12 entités : User, Contact, Company, Lead, Deal, PipelineStage, Project, Milestone, Document…)
 │   │   ├── schemas/          # Pydantic v2 (auth, companies, contacts, leads, deals, pipeline, dashboard, projects, documents)
 │   │   ├── services/         # Logique métier (CRUD, fusion, conversion, import CSV, deals, dashboard, projects, documents)
-│   │   ├── routers/          # Endpoints FastAPI (auth, companies, contacts, leads, deals, pipeline, dashboard, projects, documents, health)
-│   │   └── utils/            # security, audit, storage (Azure Blob + fallback local)
-│   ├── migrations/           # Alembic async (0001 initial, 0002 S1 indexes, 0003 S2 pipeline+deals, 0004 S3 projects+documents indexes)
+│   │   ├── routers/          # Endpoints FastAPI (auth, companies, contacts, leads, deals, pipeline, dashboard, projects, documents, activities, search, export, metrics, health)
+│   │   ├── tasks/            # Tâches CLI (gdpr_cleanup — anonymisation RGPD des leads inactifs)
+│   │   └── utils/            # security, audit (_to_json_safe), storage (Azure Blob + fallback local)
+│   ├── migrations/           # Alembic async (0001 initial, 0002 S1 indexes, 0003 S2 pipeline+deals, 0004 S3 projects+docs, 0005 S4 activities, 0006 S5 RGPD)
 │   ├── tests/
 │   │   ├── unit/             # Tests unitaires (conversion lead, fusion contact)
 │   │   └── integration/      # Tests d'intégration (companies, contacts, leads, deals, projects)
@@ -57,22 +58,22 @@ freelance-crm/
 │   └── pyproject.toml
 ├── frontend/                 # React 18 + TypeScript + Vite
 │   ├── src/
-│   │   ├── api/              # Clients Axios + hooks TanStack Query (auth, companies, contacts, leads, deals, dashboard, projects, documents)
+│   │   ├── api/              # Clients Axios + hooks TanStack Query (auth, companies, contacts, leads, deals, dashboard, projects, documents, activities, export)
 │   │   ├── features/         # Pages par domaine
 │   │   │   ├── auth/         # LoginPage
 │   │   │   ├── companies/    # CompaniesPage, CompanyDetailPage
-│   │   │   ├── contacts/     # ContactsPage, ContactDetailPage, ImportCsvWizard
+│   │   │   ├── contacts/     # ContactsPage (RGPD badge + anonymise + export CSV), ContactDetailPage, ImportCsvWizard
 │   │   │   ├── leads/        # LeadsPage (filtres, création, conversion)
-│   │   │   ├── deals/        # DealsPage (Kanban DnD), DealCard, DealSlideOver
+│   │   │   ├── deals/        # DealsPage (Kanban DnD + export CSV), DealCard, DealSlideOver
 │   │   │   ├── dashboard/    # DashboardPage (KPIs + Recharts prévisions)
-│   │   │   ├── projects/     # ProjectsPage (liste + filtres), ProjectDetailPage (jalons + documents)
+│   │   │   ├── projects/     # ProjectsPage (liste + filtres + export CSV), ProjectDetailPage (jalons + documents)
 │   │   │   └── documents/    # DocumentsPage (liste globale, filtres type/entité)
 │   │   ├── components/
 │   │   │   ├── common/       # DataTable<T>, TagsInput, ConfirmDialog
 │   │   │   └── layout/       # MainLayout, sidebar, topbar
 │   │   ├── store/            # Zustand stores (auth)
 │   │   ├── router/           # React Router v6 (routes lazy)
-│   │   ├── i18n/             # Traductions fr/en (leads, contacts, companies, csvImport, projects, documents)
+│   │   ├── i18n/             # Traductions fr/en (leads, contacts, companies, csvImport, projects, documents, activities, search, notifications, export)
 │   │   └── theme.ts          # MUI thème dark/light
 │   └── package.json
 ├── infra/                    # Bicep Azure
@@ -207,6 +208,7 @@ Tous les endpoints sont préfixés `/api/v1` et requièrent un token JWT Bearer 
 | `GET` | `/contacts/{id}` | Détail |
 | `PUT` | `/contacts/{id}` | Mise à jour partielle |
 | `DELETE` | `/contacts/{id}` | Suppression douce |
+| `POST` | `/contacts/{id}/anonymize` | Anonymisation RGPD irréversible (efface le PII, conserve les stats agrégées) |
 | `POST` | `/contacts/merge` | Fusionner deux contacts (réassigne activités & deals) |
 | `POST` | `/contacts/import/detect` | Détecter l'encodage et le mapping des colonnes CSV |
 | `POST` | `/contacts/import` | Importer un fichier CSV (multipart) |
@@ -287,6 +289,22 @@ Tous les endpoints sont préfixés `/api/v1` et requièrent un token JWT Bearer 
 |---|---|---|
 | `GET` | `/health` | Liveness check |
 | `GET` | `/health/ready` | Readiness check (DB + dépendances) |
+
+### Export CSV
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/export/contacts` | Export CSV contacts (filtre `tag`) — UTF-8 BOM, délimiteur `;` |
+| `GET` | `/export/deals` | Export CSV opportunités (filtres `stage`, `close_before`) |
+| `GET` | `/export/projects` | Export CSV missions (filtre `status`) |
+
+> Tous les exports retournent un `StreamingResponse` compatible Excel FR (BOM UTF-8, délimiteur `;`).
+
+### Métriques
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/metrics` | Format Prometheus — `http_requests_total`, `http_request_duration_seconds`, `process_uptime_seconds` |
 
 ---
 
@@ -389,8 +407,31 @@ Trois workflows GitHub Actions dans `.github/workflows/` :
 | **Sprint 2** | Pipeline Opportunités (Kanban drag-and-drop) | ✅ Terminé |
 | **Sprint 3** | Missions & Documents | ✅ Terminé |
 | **Sprint 4** | Activités, Rappels, Recherche full-text | ✅ Terminé |
-| **Sprint 5** | RGPD, Export, Observabilité (Azure Monitor) | ⏳ Planifié |
-| **Beta** | QA, Performance, Polishing | ⏳ Planifié |
+| **Sprint 5** | RGPD, Export CSV, Observabilité | ✅ Terminé |
+| **Beta** | QA, Performance, Polishing | ⏳ En cours |
+
+### Ce qui a été livré en Sprint 5
+
+**Backend**
+
+- Modèle `Contact` étendu : `anonymized_at` (DateTime) + `anonymized_stats` (JSONB — agrégats deal conservés post-anonymisation)
+- `POST /contacts/{id}/anonymize` : remplace le PII (nom, prénom, email, téléphone, LinkedIn, notes, tags) par des valeurs neutres, enregistre dans AuditLog
+- Schéma `ContactOut` : override `email: str | None` pour accepter les adresses `@anonymised.invalid` (Pydantic ne les rejette plus en sortie)
+- 3 endpoints export CSV `StreamingResponse` (UTF-8 BOM + `;`) : contacts, deals, missions — filtres optionnels sur chaque
+- `GET /metrics` : compteurs Prometheus en mémoire (thread-safe) — `http_requests_total`, histogramme durée, uptime — alimenté par le middleware HTTP
+- `app/tasks/gdpr_cleanup.py` : script CLI (`python -m app.tasks.gdpr_cleanup`) — anonymise les contacts liés à des leads `Nouveau` inactifs depuis > 36 mois
+- Migration Alembic `0006` : colonnes `anonymized_at`, `anonymized_stats` + index partiel `WHERE anonymized_at IS NOT NULL`
+- `utils/audit.py` : ajout de `_to_json_safe()` — sérialise `datetime`/`UUID` dans le diff JSON de l'AuditLog
+
+**Frontend**
+
+- `ContactsPage` : badge RGPD coloré (`GppGoodIcon` vert / `GppBadIcon` gris / `NoEncryptionIcon` rouge), bouton « Anonymiser » par ligne avec dialogue de confirmation irréversible, bouton « Export CSV » en en-tête
+- `DealsPage` + `ProjectsPage` : bouton « Export CSV » ajouté en en-tête
+- `api/export.ts` : helpers `exportApi.contacts/deals/projects` — téléchargement blob via `URL.createObjectURL` + clic `<a>` caché
+- `api/contacts.ts` : champs `consent_rgpd`, `anonymized_at`, `anonymized_stats` dans `ContactOut` ; hook `useAnonymizeContact`
+- Clés i18n `fr`/`en` : `contacts.exportCsv`, `contacts.anonymize*`, `contacts.consentYes/No`, `contacts.anonymized`, `projects.exportCsv`, section `export`
+
+---
 
 ### Ce qui a été livré en Sprint 4
 

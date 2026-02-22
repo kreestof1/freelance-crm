@@ -17,9 +17,10 @@ from slowapi.util import get_remote_address
 
 from app.config import get_settings
 from app.database import engine, Base
-from app.routers import auth, companies, contacts, dashboard, deals, documents, health, leads, pipeline, projects, activities, search
+from app.routers import auth, companies, contacts, dashboard, deals, documents, health, leads, pipeline, projects, activities, search, export, metrics
 from app.observability import configure_telemetry
 from app.services.reminder import send_pending_reminders
+from app.routers.metrics import record_request
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
@@ -93,6 +94,7 @@ def create_app() -> FastAPI:
             status=response.status_code,
             duration_ms=duration_ms,
         )
+        record_request(request.method, request.url.path, response.status_code, duration_ms / 1000)
         return response
 
     # ── Handler d'erreurs global ────────────────────────────────────────────────
@@ -129,6 +131,8 @@ def create_app() -> FastAPI:
     app.include_router(documents.router, prefix=settings.api_v1_prefix + "/documents", tags=["documents"])
     app.include_router(activities.router, prefix=settings.api_v1_prefix + "/activities", tags=["activities"])
     app.include_router(search.router, prefix=settings.api_v1_prefix + "/search", tags=["search"])
+    app.include_router(export.router, prefix=settings.api_v1_prefix + "/export", tags=["export"])
+    app.include_router(metrics.router, tags=["metrics"])
 
     return app
 

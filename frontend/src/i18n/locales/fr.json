@@ -86,8 +86,15 @@
         "mergeTitle": "Fusionner les contacts",
         "mergeConfirm": "Le premier contact sélectionné sera absorbé dans le second. Cette action est irréversible.",
         "importCsv": "Importer CSV",
+        "exportCsv": "Exporter CSV",
         "deleteConfirm": "Supprimer le contact",
-        "empty": "Aucun contact"
+        "empty": "Aucun contact",
+        "anonymize": "Anonymiser (RGPD)",
+        "anonymizeTitle": "Anonymiser ce contact",
+        "anonymizeConfirm": "Les données personnelles seront effacées de façon irréversible (RGPD). Cette action est définitive.",
+        "consentYes": "Consentement RGPD accordé",
+        "consentNo": "Pas de consentement RGPD",
+        "anonymized": "Contact anonymisé"
     },
     "companies": {
         "title": "Entreprises",
@@ -136,6 +143,7 @@
         "milestonesLabel": "Jalons",
         "upcomingLabel": "Jalon \u00e0 venir",
         "infoTitle": "Informations",
+        "exportCsv": "Exporter CSV",
         "deleteConfirm": "Supprimer la mission",
         "empty": "Aucune mission",
         "status": {
@@ -197,5 +205,9 @@
         "title": "Rappels à venir",
         "empty": "Aucun rappel à venir",
         "seeAll": "Voir toutes les activités"
+    },
+    "export": {
+        "exportCsv": "Exporter CSV",
+        "downloading": "Téléchargement..."
     }
 }

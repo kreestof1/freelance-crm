@@ -14,6 +14,10 @@ export interface ContactOut {
     company_name?: string | null
     tags: string[]
     notes?: string | null
+    consent_rgpd: boolean
+    consent_date?: string | null
+    anonymized_at?: string | null
+    anonymized_stats?: Record<string, unknown> | null
     created_at: string
     updated_at: string
 }
@@ -109,6 +113,9 @@ export const contactsApi = {
             })
             .then((r) => r.data)
     },
+
+    anonymize: (id: string) =>
+        apiClient.post<ContactOut>(`/contacts/${id}/anonymize`).then((r) => r.data),
 }
 
 // ── TanStack Query hooks ──────────────────────────────────────────────────────
@@ -170,6 +177,14 @@ export function useImportContactsCsv() {
     const qc = useQueryClient()
     return useMutation({
         mutationFn: (options: CsvImportOptions) => contactsApi.importCsv(options),
+        onSuccess: () => qc.invalidateQueries({ queryKey: [CONTACTS_KEY] }),
+    })
+}
+
+export function useAnonymizeContact() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: (id: string) => contactsApi.anonymize(id),
         onSuccess: () => qc.invalidateQueries({ queryKey: [CONTACTS_KEY] }),
     })
 }

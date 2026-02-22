@@ -158,3 +158,58 @@ async def merge_contacts(
     )
     await db.flush()
     return target
+
+
+# ── RGPD ────────────────────────────────────────────────
+
+async def anonymize_contact(
+    db: AsyncSession,
+    contact: Contact,
+    actor_id: uuid.UUID | None = None,
+) -> Contact:
+    """Remplace les PII du contact par des valeurs neutres et conserve les métriques agrégées."""
+    if contact.anonymized_at is not None:
+        return contact  # Déjà anonymisé
+
+    # Calculer les métriques agrégées avant effacement
+    deal_rows = await db.execute(
+        select(Deal.amount, Deal.stage).where(
+            Deal.contact_id == contact.id,
+            Deal.deleted_at.is_(None),
+        )
+    )
+    deals = deal_rows.all()
+    deal_count = len(deals)
+    total_amount = sum(float(d.amount) for d in deals)
+    won_count = sum(1 for d in deals if d.stage == "Gagné")
+
+    contact.anonymized_stats = {
+        "deal_count": deal_count,
+        "total_amount_eur": total_amount,
+        "won_deal_count": won_count,
+    }
+
+    # Effacement des PII
+    anon = "[Anonymisé]"
+    contact.first_name = anon
+    contact.last_name = anon
+    contact.email = f"anon-{contact.id}@anonymised.invalid"
+    contact.phone = None
+    contact.linkedin_url = None
+    contact.notes = None
+    contact.tags = []
+    contact.role = None
+    contact.consent_rgpd = False
+    contact.consent_date = None
+    contact.anonymized_at = datetime.now(timezone.utc)
+
+    await write_audit(
+        db,
+        entity_type="contact",
+        entity_id=contact.id,
+        action="anonymize",
+        actor_id=actor_id,
+        note="Contact anonymisé (RGPD)",
+    )
+    await db.flush()
+    return contact

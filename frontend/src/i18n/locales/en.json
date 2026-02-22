@@ -86,8 +86,15 @@
         "mergeTitle": "Merge contacts",
         "mergeConfirm": "The first selected contact will be absorbed into the second. This action is irreversible.",
         "importCsv": "Import CSV",
+        "exportCsv": "Export CSV",
         "deleteConfirm": "Delete contact",
-        "empty": "No contacts"
+        "empty": "No contacts",
+        "anonymize": "Anonymize (GDPR)",
+        "anonymizeTitle": "Anonymize this contact",
+        "anonymizeConfirm": "Personal data will be permanently erased (GDPR). This action cannot be undone.",
+        "consentYes": "GDPR consent given",
+        "consentNo": "No GDPR consent",
+        "anonymized": "Anonymized contact"
     },
     "companies": {
         "title": "Companies",
@@ -137,6 +144,7 @@
         "milestonesLabel": "Milestones",
         "upcomingLabel": "Upcoming",
         "infoTitle": "Information",
+        "exportCsv": "Export CSV",
         "deleteConfirm": "Delete project",
         "empty": "No projects",
         "status": {
@@ -198,5 +206,9 @@
         "title": "Upcoming reminders",
         "empty": "No upcoming reminders",
         "seeAll": "View all activities"
+    },
+    "export": {
+        "exportCsv": "Export CSV",
+        "downloading": "Downloading..."
     }
 }

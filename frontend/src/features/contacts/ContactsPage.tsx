@@ -19,6 +19,10 @@ import SearchIcon from '@mui/icons-material/Search'
 import DeleteIcon from '@mui/icons-material/Delete'
 import MergeTypeIcon from '@mui/icons-material/MergeType'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
+import DownloadIcon from '@mui/icons-material/Download'
+import GppGoodIcon from '@mui/icons-material/GppGood'
+import GppBadIcon from '@mui/icons-material/GppBad'
+import NoEncryptionIcon from '@mui/icons-material/NoEncryption'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -32,8 +36,10 @@ import {
     useCreateContact,
     useDeleteContact,
     useMergeContacts,
+    useAnonymizeContact,
     type ContactOut,
 } from '@/api/contacts'
+import { exportApi } from '@/api/export'
 
 const createContactSchema = z.object({
     first_name: z.string().optional(),
@@ -106,11 +112,14 @@ export function ContactsPage() {
     const [createOpen, setCreateOpen] = useState(false)
     const [importOpen, setImportOpen] = useState(false)
     const [deleteTarget, setDeleteTarget] = useState<ContactOut | null>(null)
+    const [anonymizeTarget, setAnonymizeTarget] = useState<ContactOut | null>(null)
     const [selected, setSelected] = useState<string[]>([])
     const [mergeConfirmOpen, setMergeConfirmOpen] = useState(false)
+    const [exporting, setExporting] = useState(false)
 
     const deleteContact = useDeleteContact()
     const mergeContacts = useMergeContacts()
+    const anonymizeContact = useAnonymizeContact()
 
     const { data, isLoading } = useContacts({
         search: search || undefined,
@@ -121,7 +130,16 @@ export function ContactsPage() {
     const columns: ColumnDef<ContactOut>[] = [
         {
             key: 'name', header: 'Nom',
-            render: (row) => [row.first_name, row.last_name].filter(Boolean).join(' ') || '(sans nom)',
+            render: (row) => (
+                <Stack direction="row" alignItems="center" spacing={1}>
+                    {row.anonymized_at
+                        ? <NoEncryptionIcon fontSize="small" color="disabled" />
+                        : row.consent_rgpd
+                            ? <GppGoodIcon fontSize="small" color="success" />
+                            : <GppBadIcon fontSize="small" color="disabled" />}
+                    <span>{[row.first_name, row.last_name].filter(Boolean).join(' ') || '(sans nom)'}</span>
+                </Stack>
+            ),
         },
         { key: 'email', header: 'Email' },
         { key: 'phone', header: 'Téléphone' },
@@ -139,11 +157,20 @@ export function ContactsPage() {
         {
             key: 'actions', header: '', align: 'right',
             render: (row) => (
-                <Tooltip title="Supprimer">
-                    <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); setDeleteTarget(row) }}>
-                        <DeleteIcon fontSize="small" />
-                    </IconButton>
-                </Tooltip>
+                <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                    {!row.anonymized_at && (
+                        <Tooltip title="Anonymiser (RGPD)">
+                            <IconButton size="small" color="warning" onClick={(e) => { e.stopPropagation(); setAnonymizeTarget(row) }}>
+                                <NoEncryptionIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                    <Tooltip title="Supprimer">
+                        <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); setDeleteTarget(row) }}>
+                            <DeleteIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                </Stack>
             ),
         },
     ]
@@ -163,6 +190,17 @@ export function ContactsPage() {
                     {selected.length === 2 && (
                         <Button variant="outlined" startIcon={<MergeTypeIcon />} onClick={() => setMergeConfirmOpen(true)}>Fusionner</Button>
                     )}
+                    <Button
+                        variant="outlined"
+                        startIcon={<DownloadIcon />}
+                        disabled={exporting}
+                        onClick={async () => {
+                            setExporting(true)
+                            try { await exportApi.contacts() } finally { setExporting(false) }
+                        }}
+                    >
+                        Export CSV
+                    </Button>
                     <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => setImportOpen(true)}>Importer CSV</Button>
                     <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>Nouveau contact</Button>
                 </Stack>
@@ -193,6 +231,19 @@ export function ContactsPage() {
                 message="Le premier contact sélectionné sera absorbé dans le second. Cette action est irréversible."
                 confirmLabel="Fusionner" loading={mergeContacts.isPending}
                 onConfirm={handleMerge} onCancel={() => setMergeConfirmOpen(false)}
+            />
+
+            <ConfirmDialog
+                open={!!anonymizeTarget}
+                title="Anonymiser ce contact (RGPD)"
+                description={`Les données personnelles de "${[anonymizeTarget?.first_name, anonymizeTarget?.last_name].filter(Boolean).join(' ')}" seront effacées. Cette action est irréversible.`}
+                confirmLabel="Anonymiser"
+                loading={anonymizeContact.isPending}
+                onConfirm={async () => {
+                    if (anonymizeTarget) await anonymizeContact.mutateAsync(anonymizeTarget.id)
+                    setAnonymizeTarget(null)
+                }}
+                onCancel={() => setAnonymizeTarget(null)}
             />
 
             <ConfirmDialog

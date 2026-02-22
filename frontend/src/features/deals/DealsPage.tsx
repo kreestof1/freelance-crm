@@ -1,4 +1,5 @@
 import AddIcon from '@mui/icons-material/Add'
+import DownloadIcon from '@mui/icons-material/Download'
 import {
     DndContext,
     DragEndEvent,
@@ -41,6 +42,7 @@ import {
 } from '@/api/deals'
 import { DealCard } from './DealCard'
 import { DealSlideOver } from './DealSlideOver'
+import { exportApi } from '@/api/export'
 
 // ── Colonne Kanban droppable ──────────────────────────────────────────────────
 
@@ -335,6 +337,14 @@ export function DealsPage() {
                         size="small"
                     >
                         Nouvelle opportunité
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        startIcon={<DownloadIcon />}
+                        onClick={() => exportApi.deals()}
+                        size="small"
+                    >
+                        Export CSV
                     </Button>
                 </Stack>
             </Box>

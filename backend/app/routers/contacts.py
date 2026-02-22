@@ -20,6 +20,7 @@ from app.schemas.contacts import (
     CsvImportResult,
 )
 from app.services.contacts import (
+    anonymize_contact,
     create_contact,
     delete_contact,
     get_contact,
@@ -88,6 +89,21 @@ async def delete_contact_endpoint(db: DB, current_user: CurrentUser, contact_id:
     contact = await _get_or_404(db, contact_id)
     await delete_contact(db, contact, actor_id=current_user.id)
     await db.commit()
+
+
+@router.post("/{contact_id}/anonymize", response_model=ContactOut)
+async def anonymize_contact_endpoint(
+    db: DB,
+    current_user: CurrentUser,
+    contact_id: uuid.UUID,
+) -> ContactOut:
+    """Anonymise les PII du contact (RGPD) et conserve les métriques agrégées."""
+    contact = await _get_or_404(db, contact_id)
+    contact = await anonymize_contact(db, contact, actor_id=current_user.id)
+    await db.commit()
+    await db.refresh(contact)
+    logger.info("contact.anonymized", contact_id=str(contact_id))
+    return ContactOut.model_validate(contact)
 
 
 # ── Fusion ────────────────────────────────────────────────────────────────────
