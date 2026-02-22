@@ -112,3 +112,17 @@ async def delete_deal_endpoint(
     await delete_deal(db, deal, actor_id=current_user.id)
     await db.commit()
     logger.info("deal.deleted", deal_id=str(deal_id))
+
+
+@router.post("/{deal_id}/create_project", status_code=status.HTTP_201_CREATED)
+async def create_project_from_deal_endpoint(
+    db: DB, current_user: CurrentUser, deal_id: uuid.UUID
+) -> dict:
+    """Crée une mission depuis un deal Gagné (verrouillé)."""
+    from app.services.projects import _enrich, create_project_from_deal
+    project = await create_project_from_deal(db, deal_id, actor_id=current_user.id)
+    await db.commit()
+    await db.refresh(project)
+    logger.info("project.created_from_deal", project_id=str(project.id), deal_id=str(deal_id))
+    enriched = await _enrich(db, project)
+    return enriched.model_dump()

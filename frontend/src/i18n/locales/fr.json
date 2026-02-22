@@ -119,6 +119,45 @@
         "required": "Ce champ est requis",
         "invalidEmail": "Adresse email invalide",
         "minLength": "Minimum {{min}} caractères",
-        "maxLength": "Maximum {{max}} caractères"
-    }
+        "maxLength": "Maximum {{max}} caractères"    },
+    "projects": {
+        "title": "Missions",
+        "new": "Nouvelle mission",
+        "titleLabel": "Titre",
+        "statusLabel": "Statut",
+        "rateTypeLabel": "Type de facturation",
+        "rateValueLabel": "TJM (\u20ac/j)",
+        "rateLabel": "Facturation",
+        "budgetAmountLabel": "Budget (\u20ac)",
+        "startDateLabel": "D\u00e9but",
+        "endDateLabel": "Fin pr\u00e9vue",
+        "notesLabel": "Notes",
+        "companyLabel": "Entreprise",
+        "milestonesLabel": "Jalons",
+        "upcomingLabel": "Jalon \u00e0 venir",
+        "infoTitle": "Informations",
+        "deleteConfirm": "Supprimer la mission",
+        "empty": "Aucune mission",
+        "status": {
+            "Planifi\u00e9": "Planifi\u00e9",
+            "En cours": "En cours",
+            "Suspendu": "Suspendu",
+            "Cl\u00f4tur\u00e9": "Cl\u00f4tur\u00e9"
+        }
+    },
+    "documents": {
+        "title": "Documents",
+        "new": "Ajouter un document",
+        "filenameLabel": "Nom du fichier",
+        "typeLabel": "Type",
+        "relatedLabel": "Li\u00e9 \u00e0",
+        "urlLabel": "URL externe",
+        "deleteConfirm": "Supprimer le document",
+        "empty": "Aucun document",
+        "type": {
+            "Brief": "Brief",
+            "Proposition": "Proposition",
+            "Contrat": "Contrat",
+            "Autre": "Autre"
+        }    }
 }

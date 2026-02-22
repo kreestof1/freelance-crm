@@ -1,5 +1,5 @@
 .PHONY: help up down build logs test-back test-front lint lint-back lint-front \
-        migrate migrate-down seed shell-api shell-db clean
+        migrate migrate-down seed seed-demo shell-api shell-db clean
 
 # ── Variables ──────────────────────────────────────────────────────────────────
 COMPOSE       = docker compose
@@ -44,6 +44,9 @@ migrate-generate: ## Génère une nouvelle migration (MSG=<description>)
 
 seed: ## Insère les données initiales (stages pipeline, user admin)
 	$(BACKEND_EXEC) python -m app.tasks.seed
+
+seed-demo: ## Insère les données initiales + données de démonstration
+	$(BACKEND_EXEC) python -m app.tasks.seed --demo
 
 # ── Tests ──────────────────────────────────────────────────────────────────────
 test-back: ## Lance les tests backend (pytest + coverage)

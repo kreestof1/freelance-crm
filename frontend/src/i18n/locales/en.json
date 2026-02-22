@@ -120,5 +120,46 @@
         "invalidEmail": "Invalid email address",
         "minLength": "Minimum {{min}} characters",
         "maxLength": "Maximum {{max}} characters"
+    },
+    "projects": {
+        "title": "Projects",
+        "new": "New project",
+        "titleLabel": "Title",
+        "statusLabel": "Status",
+        "rateTypeLabel": "Billing type",
+        "rateValueLabel": "Daily rate (\u20ac/day)",
+        "rateLabel": "Billing",
+        "budgetAmountLabel": "Budget (\u20ac)",
+        "startDateLabel": "Start date",
+        "endDateLabel": "End date",
+        "notesLabel": "Notes",
+        "companyLabel": "Company",
+        "milestonesLabel": "Milestones",
+        "upcomingLabel": "Upcoming",
+        "infoTitle": "Information",
+        "deleteConfirm": "Delete project",
+        "empty": "No projects",
+        "status": {
+            "Planifi\u00e9": "Planned",
+            "En cours": "In progress",
+            "Suspendu": "On hold",
+            "Cl\u00f4tur\u00e9": "Closed"
+        }
+    },
+    "documents": {
+        "title": "Documents",
+        "new": "Add document",
+        "filenameLabel": "Filename",
+        "typeLabel": "Type",
+        "relatedLabel": "Related to",
+        "urlLabel": "External URL",
+        "deleteConfirm": "Delete document",
+        "empty": "No documents",
+        "type": {
+            "Brief": "Brief",
+            "Proposition": "Proposal",
+            "Contrat": "Contract",
+            "Autre": "Other"
+        }
     }
 }

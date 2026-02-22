@@ -2,7 +2,7 @@
 
 **Auteur** : Christophe Barré  
 **Stack** : FastAPI · React 18 · PostgreSQL 15 · Azure  
-**Sprint courant** : Sprint 3 — Missions & Documents
+**Sprint courant** : Sprint 4 — Activités & Rappels
 
 ---
 
@@ -44,33 +44,35 @@ freelance-crm/
 │   │   ├── database.py       # Async SQLAlchemy engine
 │   │   ├── observability.py  # OpenTelemetry (Azure Monitor / OTLP)
 │   │   ├── dependencies.py   # Auth guard, pagination
-│   │   ├── models/           # ORM (12 entités : User, Contact, Company, Lead, Deal, PipelineStage…)
-│   │   ├── schemas/          # Pydantic v2 (auth, companies, contacts, leads, deals, pipeline, dashboard)
-│   │   ├── services/         # Logique métier (CRUD, fusion, conversion, import CSV, deals, dashboard)
-│   │   ├── routers/          # Endpoints FastAPI (auth, companies, contacts, leads, deals, pipeline, dashboard, health)
-│   │   └── utils/            # security, audit, storage
-│   ├── migrations/           # Alembic async (0001 initial, 0002 Sprint 1 indexes, 0003 Sprint 2 pipeline+deals)
+│   │   ├── models/           # ORM (12 entités : User, Contact, Company, Lead, Deal, PipelineStage, Project, Milestone, Document…)
+│   │   ├── schemas/          # Pydantic v2 (auth, companies, contacts, leads, deals, pipeline, dashboard, projects, documents)
+│   │   ├── services/         # Logique métier (CRUD, fusion, conversion, import CSV, deals, dashboard, projects, documents)
+│   │   ├── routers/          # Endpoints FastAPI (auth, companies, contacts, leads, deals, pipeline, dashboard, projects, documents, health)
+│   │   └── utils/            # security, audit, storage (Azure Blob + fallback local)
+│   ├── migrations/           # Alembic async (0001 initial, 0002 S1 indexes, 0003 S2 pipeline+deals, 0004 S3 projects+documents indexes)
 │   ├── tests/
 │   │   ├── unit/             # Tests unitaires (conversion lead, fusion contact)
-│   │   └── integration/      # Tests d'intégration (companies, contacts, leads)
+│   │   └── integration/      # Tests d'intégration (companies, contacts, leads, deals, projects)
 │   ├── Dockerfile
 │   └── pyproject.toml
 ├── frontend/                 # React 18 + TypeScript + Vite
 │   ├── src/
-│   │   ├── api/              # Clients Axios + hooks TanStack Query (auth, companies, contacts, leads, deals, dashboard)
+│   │   ├── api/              # Clients Axios + hooks TanStack Query (auth, companies, contacts, leads, deals, dashboard, projects, documents)
 │   │   ├── features/         # Pages par domaine
 │   │   │   ├── auth/         # LoginPage
 │   │   │   ├── companies/    # CompaniesPage, CompanyDetailPage
 │   │   │   ├── contacts/     # ContactsPage, ContactDetailPage, ImportCsvWizard
 │   │   │   ├── leads/        # LeadsPage (filtres, création, conversion)
 │   │   │   ├── deals/        # DealsPage (Kanban DnD), DealCard, DealSlideOver
-│   │   │   └── dashboard/    # DashboardPage (KPIs + Recharts prévisions)
+│   │   │   ├── dashboard/    # DashboardPage (KPIs + Recharts prévisions)
+│   │   │   ├── projects/     # ProjectsPage (liste + filtres), ProjectDetailPage (jalons + documents)
+│   │   │   └── documents/    # DocumentsPage (liste globale, filtres type/entité)
 │   │   ├── components/
 │   │   │   ├── common/       # DataTable<T>, TagsInput, ConfirmDialog
 │   │   │   └── layout/       # MainLayout, sidebar, topbar
 │   │   ├── store/            # Zustand stores (auth)
 │   │   ├── router/           # React Router v6 (routes lazy)
-│   │   ├── i18n/             # Traductions fr/en (leads, contacts, companies, csvImport)
+│   │   ├── i18n/             # Traductions fr/en (leads, contacts, companies, csvImport, projects, documents)
 │   │   └── theme.ts          # MUI thème dark/light
 │   └── package.json
 ├── infra/                    # Bicep Azure
@@ -230,8 +232,38 @@ Tous les endpoints sont préfixés `/api/v1` et requièrent un token JWT Bearer 
 | `PATCH` | `/deals/{id}` | Mise à jour partielle (verrouillé si `Gagné`) |
 | `DELETE` | `/deals/{id}` | Suppression douce |
 | `POST` | `/deals/{id}/move` | Déplacer dans le pipeline (Kanban) |
+| `POST` | `/deals/{id}/create_project` | Créer une mission depuis un deal Gagné (HTTP 201) |
 
-> **Règle métier** : un deal déplacé en `Gagné` est automatiquement verrouillé (`is_locked=true`, `probability=100`). Modifer `amount` ou `expected_close` sur un deal verrouillé retourne HTTP 422.
+> **Règle métier** : un deal déplacé en `Gagné` est automatiquement verrouillé (`is_locked=true`, `probability=100`). Modifier `amount` ou `expected_close` sur un deal verrouillé retourne HTTP 422.
+
+### Missions (Projects)
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/projects` | Liste paginée (filtre `search`, `status`) |
+| `POST` | `/projects` | Créer une mission |
+| `GET` | `/projects/{id}` | Détail enrichi (jalons, métriques, prochains jalons) |
+| `PATCH` | `/projects/{id}` | Mise à jour partielle |
+| `DELETE` | `/projects/{id}` | Suppression douce |
+| `POST` | `/projects/{id}/milestones` | Ajouter un jalon |
+| `PATCH` | `/projects/{id}/milestones/{mid}` | Modifier un jalon |
+| `DELETE` | `/projects/{id}/milestones/{mid}` | Supprimer un jalon |
+
+**Statuts** : `Planifié → En cours → Suspendu → Clôturé`  
+**Types de facturation** : `TJM` (taux journalier) · `Forfait` (budget global)  
+**Jalons** : statuts `Pending / Done / Delayed` ; mise en évidence des jalons dus dans les 7 jours suivants
+
+### Documents
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/documents` | Liste (globale ou filtrée par `related_type` + `related_id`) |
+| `POST` | `/documents` | Upload fichier (multipart) **ou** enregistrer lien externe |
+| `GET` | `/documents/{id}` | Métadonnées + URL signée Azure Blob (1 h, fallback `file_uri` en dev) |
+| `DELETE` | `/documents/{id}` | Suppression douce |
+
+**Types** : `Brief · Proposition · Contrat · Autre`  
+**Entités liables** : `deal` ou `project`
 
 ### Pipeline
 
@@ -276,6 +308,7 @@ cd backend && poetry run pytest --cov=app tests/ -v
 | Intégration — contacts | `tests/integration/test_contacts.py` | CRUD + merge + CSV import |
 | Intégration — leads | `tests/integration/test_leads.py` | CRUD + conversion + 409 double |
 | Intégration — deals | `tests/integration/test_deals.py` | CRUD, move, verrouillage Gagné, weighted_amount, dashboard |
+| Intégration — missions & docs | `tests/integration/test_projects.py` | CRUD projects, jalons, documents, create_from_deal, 409 doublon |
 
 Couverture globale cible : **≥ 80 %**
 
@@ -354,10 +387,35 @@ Trois workflows GitHub Actions dans `.github/workflows/` :
 | **Sprint 0** | Fondations (infra, auth, scaffold, Docker, CI/CD, Bicep) | ✅ Terminé |
 | **Sprint 1** | Contacts, Entreprises, Leads — CRUD, fusion, import CSV, conversion | ✅ Terminé |
 | **Sprint 2** | Pipeline Opportunités (Kanban drag-and-drop) | ✅ Terminé |
-| **Sprint 3** | Missions & Documents | 🔄 En cours |
+| **Sprint 3** | Missions & Documents | ✅ Terminé |
 | **Sprint 4** | Activités, Rappels, Recherche full-text | ⏳ Planifié |
 | **Sprint 5** | RGPD, Export, Observabilité (Azure Monitor) | ⏳ Planifié |
 | **Beta** | QA, Performance, Polishing | ⏳ Planifié |
+
+### Ce qui a été livré en Sprint 3
+
+**Backend**
+
+- Schémas Pydantic v2 : `ProjectCreate/Patch/Out/List`, `MilestoneCreate/Patch/Out`, `DocumentCreate/Out/List`
+- Service `projects` : CRUD complet, enrichissement (company_name, deal_title, milestones[], métriques, upcoming_milestones), `create_project_from_deal` (409 si doublon deal), transitions de statut logguées dans AuditLog
+- Service `documents` : upload vers Azure Blob Storage (fallback `local://` en dev), liens externes, URL signées 1 h, soft-delete
+- 9 endpoints `/projects` (CRUD + 3 jalons) + 4 endpoints `/documents` (upload/lien, liste, détail+SAS, suppression)
+- `POST /deals/{id}/create_project` : factory depuis un deal Gagné verrouillé
+- Migration Alembic `0004` : 8 index de performance (projets, jalons, documents, audit logs) — pas de nouvelles tables (déjà créées en 0001)
+- 18 tests d'intégration dans `test_projects.py` (CRUD, jalons, documents, create_from_deal, 409, 422)
+- Listing global `/documents` sans filtre obligatoire (100 derniers, avec filtres optionnels `type` et `related_type`)
+
+**Frontend**
+
+- `ProjectsPage` : liste filtrée par statut + recherche, barre de progression des jalons, chip « jalon à venir », dialogue de création (titre, statut, facturation TJM/Forfait, dates, notes)
+- `ProjectDetailPage` : dropdown statut avec auto-sauvegarde, panneau jalons (stepper, mise en évidence orange ≤7 jours, ajout/édition/suppression), panneau documents (upload fichier + lien externe, affichage avec lien d'ouverture, suppression)
+- `DocumentsPage` : liste globale de tous les documents, filtres par type et entité, recherche par nom, suppression avec confirmation
+- Hooks TanStack Query : `useProjects`, `useProject`, `useCreateProject`, `usePatchProject`, `useDeleteProject`, `useCreateProjectFromDeal`, `useAddMilestone`, `usePatchMilestone`, `useDeleteMilestone`, `useDocuments`, `useAllDocuments`, `useDocument`, `useUploadDocument`, `useDeleteDocument`
+- Route lazy `/projects/:id` → `ProjectDetailPage`
+- Clés i18n `fr` / `en` pour `projects` (statuts inclus) et `documents` (types inclus)
+- Ajout de la dépendance `date-fns ^3.6.0` (formatage dates, calcul jalons imminents)
+
+---
 
 ### Ce qui a été livré en Sprint 2
 

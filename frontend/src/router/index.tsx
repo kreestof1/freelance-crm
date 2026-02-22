@@ -37,6 +37,7 @@ export const router = createBrowserRouter([
                     { path: '/companies/:id', lazy: () => import('@/features/companies/CompanyDetailPage').then(m => ({ Component: m.CompanyDetailPage })) },
                     { path: '/deals', lazy: () => import('@/features/deals/DealsPage').then(m => ({ Component: m.DealsPage })) },
                     { path: '/projects', lazy: () => import('@/features/projects/ProjectsPage').then(m => ({ Component: m.ProjectsPage })) },
+                    { path: '/projects/:id', lazy: () => import('@/features/projects/ProjectDetailPage').then(m => ({ Component: m.ProjectDetailPage })) },
                     { path: '/activities', lazy: () => import('@/features/activities/ActivitiesPage').then(m => ({ Component: m.ActivitiesPage })) },
                     { path: '/documents', lazy: () => import('@/features/documents/DocumentsPage').then(m => ({ Component: m.DocumentsPage })) },
                 ],
