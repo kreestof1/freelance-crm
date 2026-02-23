@@ -10,7 +10,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.document import Document
 from app.schemas.documents import DocumentCreate, DocumentOut
 from app.utils.audit import write_audit
-from app.utils.storage import build_blob_name, generate_sas_url, upload_blob
+from app.utils.storage import build_blob_name, generate_sas_url, resolve_download_url, upload_blob
+
+
+def _enrich(doc: Document) -> DocumentOut:
+    """Construit un DocumentOut avec signed_url résolu (version sync, pour les listes)."""
+    out = DocumentOut.model_validate(doc)
+    if doc.external_url:
+        out.signed_url = doc.external_url
+    elif doc.file_uri:
+        out.signed_url = resolve_download_url(doc.file_uri, doc_type=doc.type)
+    return out
 
 
 # ── CRUD ──────────────────────────────────────────────────────────────────────
@@ -34,7 +44,7 @@ async def list_documents_for_entity(
             Document.deleted_at.is_(None),
         ).order_by(Document.created_at.desc())
     )
-    return [DocumentOut.model_validate(d) for d in rows.scalars()]
+    return [_enrich(d) for d in rows.scalars()]
 
 
 async def list_all_documents(
@@ -57,7 +67,7 @@ async def list_all_documents(
         .order_by(Document.created_at.desc())
         .limit(limit)
     )
-    return [DocumentOut.model_validate(d) for d in rows.scalars()]
+    return [_enrich(d) for d in rows.scalars()]
 
 
 async def create_document_from_upload(
@@ -131,7 +141,9 @@ async def get_document_with_url(db: AsyncSession, document_id: uuid.UUID) -> Doc
     out = DocumentOut.model_validate(doc)
     if doc.file_uri:
         try:
-            out.signed_url = await generate_sas_url(doc.file_uri, doc_type=doc.type)
+            out.signed_url = await generate_sas_url(
+                doc.file_uri, doc_type=doc.type, document_id=str(document_id)
+            )
         except Exception:
             # En dev local (pas de storage Azure), retourne l'URI brut
             out.signed_url = doc.file_uri

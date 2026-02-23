@@ -17,6 +17,13 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`
     }
+    // Pour les requêtes multipart (FormData), supprimer le Content-Type par défaut
+    // afin que le navigateur puisse le définir lui-même avec le boundary correct.
+    // Sans ça, axios 1.x sérialise la FormData en JSON (FormDataSerializer.toJSON)
+    // à cause du default "Content-Type: application/json", ce qui brise l'upload.
+    if (config.data instanceof FormData) {
+        delete (config.headers as Record<string, unknown>)['Content-Type']
+    }
     return config
 })
 

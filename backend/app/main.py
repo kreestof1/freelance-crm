@@ -11,6 +11,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -133,6 +134,17 @@ def create_app() -> FastAPI:
     app.include_router(search.router, prefix=settings.api_v1_prefix + "/search", tags=["search"])
     app.include_router(export.router, prefix=settings.api_v1_prefix + "/export", tags=["export"])
     app.include_router(metrics.router, tags=["metrics"])
+
+    # ── Fichiers locaux (dev uniquement, sans Azure Storage) ─────────────────
+    if settings.environment == "local":
+        import os
+        from app.utils.storage import LOCAL_UPLOADS_DIR
+        os.makedirs(LOCAL_UPLOADS_DIR, exist_ok=True)
+        app.mount(
+            settings.api_v1_prefix + "/local-uploads",
+            StaticFiles(directory=LOCAL_UPLOADS_DIR),
+            name="local_uploads",
+        )
 
     return app
 

@@ -105,7 +105,6 @@ export function useUploadDocument() {
                 form.append('file', file)
             } else if (externalUrl) {
                 form.append('external_url', externalUrl)
-                form.append('filename', externalUrl.split('/').pop() ?? 'document')
             }
             return apiClient.post<DocumentOut>('/documents', form).then((r) => r.data)
         },

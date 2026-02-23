@@ -29,6 +29,22 @@ def build_blob_name(entity_type: str, entity_id: uuid.UUID, filename: str) -> st
     return f"{entity_type}/{entity_id}/{uuid.uuid4()}_{safe_filename}"
 
 
+LOCAL_UPLOADS_DIR = "/app/local_uploads"
+
+
+def resolve_download_url(file_uri: str, doc_type: str = "Autre") -> str | None:
+    """Retourne l'URL de téléchargement (sync).
+
+    - En dev (local://) : chemin vers le fichier statique servi par FastAPI.
+    - En prod (chemin blob Azure) : utiliser generate_sas_url() (async) à la place.
+    """
+    if file_uri.startswith("local://"):
+        path = file_uri.removeprefix("local://")
+        return f"/api/v1/local-uploads/{path}"
+    # En prod le blob_name seul n'est pas navigable sans SAS ; retourne None.
+    return None
+
+
 async def upload_blob(
     content: bytes,
     blob_name: str,
@@ -37,7 +53,12 @@ async def upload_blob(
     """Upload un blob et retourne son URI (path, sans SAS)."""
     settings = get_settings()
     if not settings.azure_storage_url:
-        logger.warning("storage.upload_skipped", reason="AZURE_STORAGE_URL not set")
+        import os
+        dest = os.path.join(LOCAL_UPLOADS_DIR, blob_name)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        with open(dest, "wb") as fh:
+            fh.write(content)
+        logger.info("storage.local_save", path=dest)
         return f"local://{blob_name}"
 
     try:
@@ -59,11 +80,13 @@ async def upload_blob(
         raise
 
 
-async def generate_sas_url(blob_name: str, doc_type: str = "Autre", expire_hours: int = 1) -> str:
+async def generate_sas_url(blob_name: str, doc_type: str = "Autre", expire_hours: int = 1, document_id: str | None = None) -> str:
     """Génère une URL SAS valide {expire_hours}h pour un blob."""
     settings = get_settings()
     if not settings.azure_storage_url:
-        return f"local://{blob_name}"
+        # En dev : URL statique servie par FastAPI (via le proxy Vite), sans auth required
+        path = blob_name.removeprefix("local://")
+        return f"/api/v1/local-uploads/{path}"
 
     try:
         from azure.identity.aio import DefaultAzureCredential

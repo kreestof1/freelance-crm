@@ -1,11 +1,14 @@
 """Router /documents — upload fichier, lien externe, URL signée, soft-delete."""
 from __future__ import annotations
 
+import mimetypes
+import os
 import uuid
 from typing import Annotated
 
 import structlog
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -37,7 +40,7 @@ async def upload_document(
     related_type: str | None = Form(default=None),
     related_id: uuid.UUID | None = Form(default=None),
     external_url: str | None = Form(default=None),
-    file: UploadFile | None = None,
+    file: UploadFile | None = File(default=None),
 ) -> DocumentOut:
     """
     Upload un fichier (multipart/form-data) **ou** enregistrer un lien externe.
@@ -92,6 +95,44 @@ async def get_document_endpoint(
 ) -> DocumentOut:
     """Métadonnées + URL signée (1h) valide pour téléchargement."""
     return await get_document_with_url(db, document_id)
+
+
+@router.get("/{document_id}/content")
+async def download_document_content(
+    db: DB, current_user: CurrentUser, document_id: uuid.UUID
+) -> StreamingResponse:
+    """Télécharge le contenu binaire d'un document (mode dev local uniquement)."""
+    from app.utils.storage import LOCAL_UPLOADS_DIR
+
+    doc = await get_document(db, document_id)
+    if not doc or not doc.file_uri:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "NOT_FOUND", "message": "Document introuvable"},
+        )
+    if not doc.file_uri.startswith("local://"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "USE_SAS_URL", "message": "Utilisez l'URL signée pour les blobs Azure"},
+        )
+    blob_name = doc.file_uri.removeprefix("local://")
+    path = os.path.join(LOCAL_UPLOADS_DIR, blob_name)
+    if not os.path.isfile(path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "FILE_NOT_FOUND", "message": "Fichier introuvable sur le serveur"},
+        )
+    mime = doc.mime_type or mimetypes.guess_type(doc.filename)[0] or "application/octet-stream"
+
+    def _iter():
+        with open(path, "rb") as fh:
+            yield from iter(lambda: fh.read(65536), b"")
+
+    return StreamingResponse(
+        _iter(),
+        media_type=mime,
+        headers={"Content-Disposition": f'inline; filename="{doc.filename}"'},
+    )
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)

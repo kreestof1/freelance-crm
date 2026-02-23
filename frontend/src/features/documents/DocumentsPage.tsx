@@ -139,12 +139,12 @@ export function DocumentsPage() {
             header: '',
             render: (row) => (
                 <Stack direction="row" justifyContent="flex-end" gap={0.5}>
-                    {(row.external_url || row.file_uri) && (
+                    {(row.signed_url || row.external_url) && (
                         <Tooltip title="Ouvrir">
                             <IconButton
                                 size="small"
                                 component={Link}
-                                href={row.external_url ?? row.file_uri ?? '#'}
+                                href={row.signed_url ?? row.external_url ?? '#'}
                                 target="_blank"
                                 rel="noopener noreferrer"
                             >
