@@ -17,6 +17,7 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import DeleteIcon from '@mui/icons-material/Delete'
+import EditIcon from '@mui/icons-material/Edit'
 import MergeTypeIcon from '@mui/icons-material/MergeType'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import DownloadIcon from '@mui/icons-material/Download'
@@ -34,6 +35,7 @@ import { ImportCsvWizard } from './ImportCsvWizard'
 import {
     useContacts,
     useCreateContact,
+    useUpdateContact,
     useDeleteContact,
     useMergeContacts,
     useAnonymizeContact,
@@ -41,7 +43,7 @@ import {
 } from '@/api/contacts'
 import { exportApi } from '@/api/export'
 
-const createContactSchema = z.object({
+const contactSchema = z.object({
     first_name: z.string().optional(),
     last_name: z.string().optional(),
     email: z.string().email('Email invalide').optional().or(z.literal('')),
@@ -49,19 +51,20 @@ const createContactSchema = z.object({
     position: z.string().optional(),
     notes: z.string().optional(),
     tags: z.array(z.string()).default([]),
+    consent_rgpd: z.boolean().default(false),
 })
 
-type CreateContactForm = z.infer<typeof createContactSchema>
+type ContactForm = z.infer<typeof contactSchema>
 
 function CreateContactDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
     const createContact = useCreateContact()
-    const { control, handleSubmit, reset, setValue, watch } = useForm<CreateContactForm>({
-        resolver: zodResolver(createContactSchema),
-        defaultValues: { tags: [] },
+    const { control, handleSubmit, reset, setValue, watch } = useForm<ContactForm>({
+        resolver: zodResolver(contactSchema),
+        defaultValues: { tags: [], consent_rgpd: false },
     })
     const tags = watch('tags')
 
-    const onSubmit = async (data: CreateContactForm) => {
+    const onSubmit = async (data: ContactForm) => {
         await createContact.mutateAsync({ ...data, email: data.email || undefined })
         reset()
         onClose()
@@ -105,12 +108,91 @@ function CreateContactDialog({ open, onClose }: { open: boolean; onClose: () => 
     )
 }
 
+function EditContactDialog({ contact, onClose }: { contact: ContactOut | null; onClose: () => void }) {
+    const updateContact = useUpdateContact()
+    const { control, handleSubmit, reset, setValue, watch } = useForm<ContactForm>({
+        resolver: zodResolver(contactSchema),
+        defaultValues: { tags: [], consent_rgpd: false },
+    })
+    const tags = watch('tags')
+
+    React.useEffect(() => {
+        if (contact) {
+            reset({
+                first_name: contact.first_name ?? '',
+                last_name: contact.last_name ?? '',
+                email: contact.email ?? '',
+                phone: contact.phone ?? '',
+                position: contact.position ?? '',
+                notes: contact.notes ?? '',
+                tags: contact.tags ?? [],
+                consent_rgpd: contact.consent_rgpd ?? false,
+            })
+        }
+    }, [contact, reset])
+
+    const onSubmit = async (data: ContactForm) => {
+        if (!contact) return
+        await updateContact.mutateAsync({ id: contact.id, data: { ...data, email: data.email || undefined } })
+        onClose()
+    }
+
+    return (
+        <Dialog open={!!contact} onClose={onClose} maxWidth="sm" fullWidth>
+            <DialogTitle>Modifier le contact</DialogTitle>
+            <form onSubmit={handleSubmit(onSubmit)}>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ pt: 1 }}>
+                        <Stack direction="row" spacing={2}>
+                            <Controller name="first_name" control={control} render={({ field }) => (
+                                <TextField {...field} label="Prénom" fullWidth size="small" />
+                            )} />
+                            <Controller name="last_name" control={control} render={({ field }) => (
+                                <TextField {...field} label="Nom" fullWidth size="small" />
+                            )} />
+                        </Stack>
+                        <Controller name="email" control={control} render={({ field, fieldState }) => (
+                            <TextField {...field} label="Email" type="email" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth size="small" />
+                        )} />
+                        <Controller name="phone" control={control} render={({ field }) => (
+                            <TextField {...field} label="Téléphone" fullWidth size="small" />
+                        )} />
+                        <Controller name="position" control={control} render={({ field }) => (
+                            <TextField {...field} label="Poste" fullWidth size="small" />
+                        )} />
+                        <TagsInput value={tags} onChange={(t) => setValue('tags', t)} />
+                        <Controller name="notes" control={control} render={({ field }) => (
+                            <TextField {...field} label="Notes" multiline rows={3} fullWidth size="small" />
+                        )} />
+                        <Controller name="consent_rgpd" control={control} render={({ field }) => (
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                                <input
+                                    type="checkbox"
+                                    id="consent_rgpd_edit"
+                                    checked={!!field.value}
+                                    onChange={(e) => field.onChange(e.target.checked)}
+                                />
+                                <label htmlFor="consent_rgpd_edit" style={{ fontSize: 14 }}>Consentement RGPD</label>
+                            </Stack>
+                        )} />
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={onClose}>Annuler</Button>
+                    <Button type="submit" variant="contained" disabled={updateContact.isPending}>Enregistrer</Button>
+                </DialogActions>
+            </form>
+        </Dialog>
+    )
+}
+
 export function ContactsPage() {
     const [search, setSearch] = useState('')
     const [page, setPage] = useState(0)
     const [pageSize, setPageSize] = useState(25)
     const [createOpen, setCreateOpen] = useState(false)
     const [importOpen, setImportOpen] = useState(false)
+    const [editTarget, setEditTarget] = useState<ContactOut | null>(null)
     const [deleteTarget, setDeleteTarget] = useState<ContactOut | null>(null)
     const [anonymizeTarget, setAnonymizeTarget] = useState<ContactOut | null>(null)
     const [selected, setSelected] = useState<string[]>([])
@@ -158,6 +240,13 @@ export function ContactsPage() {
             key: 'actions', header: '', align: 'right',
             render: (row) => (
                 <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                    {!row.anonymized_at && (
+                        <Tooltip title="Modifier">
+                            <IconButton size="small" onClick={(e) => { e.stopPropagation(); setEditTarget(row) }}>
+                                <EditIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    )}
                     {!row.anonymized_at && (
                         <Tooltip title="Anonymiser (RGPD)">
                             <IconButton size="small" color="warning" onClick={(e) => { e.stopPropagation(); setAnonymizeTarget(row) }}>
@@ -224,6 +313,7 @@ export function ContactsPage() {
             />
 
             <CreateContactDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+            <EditContactDialog contact={editTarget} onClose={() => setEditTarget(null)} />
             <ImportCsvWizard open={importOpen} onClose={() => setImportOpen(false)} />
 
             <ConfirmDialog
