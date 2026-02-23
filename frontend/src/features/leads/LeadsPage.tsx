@@ -18,6 +18,7 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import DeleteIcon from '@mui/icons-material/Delete'
+import EditIcon from '@mui/icons-material/Edit'
 import AutorenewIcon from '@mui/icons-material/Autorenew'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -29,6 +30,7 @@ import { TagsInput } from '@/components/common/TagsInput'
 import {
     useLeads,
     useCreateLead,
+    usePatchLead,
     useDeleteLead,
     useConvertLead,
     type LeadOut,
@@ -55,6 +57,8 @@ const createLeadSchema = z.object({
     email: z.string().email('Email invalide').optional().or(z.literal('')),
     phone: z.string().optional(),
     source: z.enum(['web', 'linkedin', 'referral', 'email', 'phone', 'event', 'other']),
+    status: z.enum(['Nouveau', 'Qualifié', 'Converti', 'Perdu']).optional(),
+    score: z.number().min(0).max(100).optional().nullable(),
     notes: z.string().optional(),
     tags: z.array(z.string()).default([]),
 })
@@ -66,20 +70,20 @@ const convertSchema = z.object({
     create_contact: z.boolean().default(true),
 })
 
-type CreateLeadForm = z.infer<typeof createLeadSchema>
+type LeadForm = z.infer<typeof createLeadSchema>
 type ConvertForm = z.infer<typeof convertSchema>
 
 // ── Create Lead Dialog ────────────────────────────────────────────────────────
 
 function CreateLeadDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
     const createLead = useCreateLead()
-    const { control, handleSubmit, reset, setValue, watch } = useForm<CreateLeadForm>({
+    const { control, handleSubmit, reset, setValue, watch } = useForm<LeadForm>({
         resolver: zodResolver(createLeadSchema),
         defaultValues: { source: 'web', tags: [] },
     })
     const tags = watch('tags')
 
-    const onSubmit = async (data: CreateLeadForm) => {
+    const onSubmit = async (data: LeadForm) => {
         await createLead.mutateAsync({ ...data, email: data.email || undefined })
         reset()
         onClose()
@@ -132,6 +136,125 @@ function CreateLeadDialog({ open, onClose }: { open: boolean; onClose: () => voi
                 <DialogActions>
                     <Button onClick={onClose}>Annuler</Button>
                     <Button type="submit" variant="contained" disabled={createLead.isPending}>Créer</Button>
+                </DialogActions>
+            </form>
+        </Dialog>
+    )
+}
+
+// ── Edit Lead Dialog ─────────────────────────────────────────────────────────
+
+const editLeadSchema = z.object({
+    name: z.string().min(1, 'Requis'),
+    email: z.union([z.string().email('Email invalide'), z.literal(''), z.null()]).optional(),
+    phone: z.string().optional().nullable(),
+    source: z.enum(['web', 'linkedin', 'referral', 'email', 'phone', 'event', 'other']),
+    status: z.enum(['Nouveau', 'Qualifié', 'Converti', 'Perdu']),
+    score: z.number().min(0).max(100).nullable().optional(),
+    notes: z.string().optional().nullable(),
+    tags: z.array(z.string()).default([]),
+})
+
+type EditLeadForm = z.infer<typeof editLeadSchema>
+
+function EditLeadDialog({ lead, onClose }: { lead: LeadOut | null; onClose: () => void }) {
+    const patchLead = usePatchLead()
+    const { control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<EditLeadForm>({
+        resolver: zodResolver(editLeadSchema),
+    })
+    const tags = watch('tags') ?? []
+
+    React.useEffect(() => {
+        if (lead) {
+            reset({
+                name: lead.name,
+                email: lead.email ?? '',
+                phone: lead.phone ?? '',
+                source: lead.source,
+                status: lead.status,
+                score: lead.score ?? null,
+                notes: lead.notes ?? '',
+                tags: lead.tags ?? [],
+            })
+        }
+    }, [lead, reset])
+
+    const onSubmit = async (data: EditLeadForm) => {
+        if (!lead) return
+        try {
+            await patchLead.mutateAsync({
+                id: lead.id,
+                data: {
+                    name: data.name,
+                    email: data.email || null,
+                    phone: data.phone || null,
+                    source: data.source,
+                    status: data.status,
+                    score: data.score ?? null,
+                    notes: data.notes || null,
+                    tags: data.tags,
+                },
+            })
+            onClose()
+        } catch (_e) {
+            // error handled by mutation state
+        }
+    }
+
+    return (
+        <Dialog open={!!lead} onClose={onClose} maxWidth="sm" fullWidth>
+            <DialogTitle>Modifier le prospect</DialogTitle>
+            <form onSubmit={handleSubmit(onSubmit)}>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ pt: 1 }}>
+                        <Controller name="name" control={control} render={({ field, fieldState }) => (
+                            <TextField {...field} label="Nom *" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth size="small" />
+                        )} />
+                        <Controller name="email" control={control} render={({ field, fieldState }) => (
+                            <TextField {...field} value={field.value ?? ''} label="Email" type="email" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth size="small" />
+                        )} />
+                        <Controller name="phone" control={control} render={({ field }) => (
+                            <TextField {...field} value={field.value ?? ''} label="Téléphone" fullWidth size="small" />
+                        )} />
+                        <Stack direction="row" spacing={2}>
+                            <Controller name="source" control={control} render={({ field }) => (
+                                <TextField {...field} select label="Source *" fullWidth size="small">
+                                    {SOURCE_OPTIONS.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+                                </TextField>
+                            )} />
+                            <Controller name="status" control={control} render={({ field }) => (
+                                <TextField {...field} select label="Statut" fullWidth size="small">
+                                    {STATUS_OPTIONS.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+                                </TextField>
+                            )} />
+                        </Stack>
+                        <Controller name="score" control={control} render={({ field }) => (
+                            <TextField
+                                label="Score (0-100)"
+                                type="number"
+                                fullWidth
+                                size="small"
+                                inputProps={{ min: 0, max: 100 }}
+                                value={field.value ?? ''}
+                                onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                            />
+                        )} />
+                        <TagsInput value={tags} onChange={(t) => setValue('tags', t)} />
+                        <Controller name="notes" control={control} render={({ field }) => (
+                            <TextField {...field} value={field.value ?? ''} label="Notes" multiline rows={3} fullWidth size="small" />
+                        )} />
+                        {Object.keys(errors).length > 0 && (
+                            <Typography variant="caption" color="error">
+                                {Object.entries(errors).map(([k, v]) => `${k}: ${(v as { message?: string })?.message ?? 'invalide'}`).join(', ')}
+                            </Typography>
+                        )}
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={onClose}>Annuler</Button>
+                    <Button type="submit" variant="contained" disabled={patchLead.isPending}>
+                        {patchLead.isPending ? 'Enregistrement…' : 'Enregistrer'}
+                    </Button>
                 </DialogActions>
             </form>
         </Dialog>
@@ -221,6 +344,7 @@ export function LeadsPage() {
     const [page, setPage] = useState(0)
     const [pageSize, setPageSize] = useState(25)
     const [createOpen, setCreateOpen] = useState(false)
+    const [editTarget, setEditTarget] = useState<LeadOut | null>(null)
     const [convertTarget, setConvertTarget] = useState<LeadOut | null>(null)
     const [deleteTarget, setDeleteTarget] = useState<LeadOut | null>(null)
 
@@ -254,6 +378,11 @@ export function LeadsPage() {
             align: 'right',
             render: (row) => (
                 <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                    <Tooltip title="Modifier">
+                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); setEditTarget(row) }}>
+                            <EditIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
                     {row.status !== 'Converti' && (
                         <Tooltip title="Convertir">
                             <IconButton size="small" color="success" onClick={(e) => { e.stopPropagation(); setConvertTarget(row) }}>
@@ -315,6 +444,7 @@ export function LeadsPage() {
             />
 
             <CreateLeadDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+            <EditLeadDialog lead={editTarget} onClose={() => setEditTarget(null)} />
             <ConvertLeadDialog lead={convertTarget} open={!!convertTarget} onClose={() => setConvertTarget(null)} />
             <ConfirmDialog
                 open={!!deleteTarget}
