@@ -5,6 +5,7 @@ import {
     Box,
     Drawer,
     IconButton,
+    Link,
     List,
     ListItemButton,
     ListItemIcon,
@@ -104,6 +105,21 @@ export function MainLayout() {
                     </ListItemIcon>
                     <ListItemText primary={t('auth.logout')} />
                 </ListItemButton>
+                <Box sx={{ px: 1, pb: 1, pt: 0.5, textAlign: 'center' }}>
+                    <Typography variant="caption" color="text.disabled" display="block">
+                        &copy; {new Date().getFullYear()}{' '}
+                        <Link
+                            href="https://www.jalex.fr"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            underline="hover"
+                            color="text.disabled"
+                            sx={{ fontWeight: 500 }}
+                        >
+                            Jalex Consulting
+                        </Link>
+                    </Typography>
+                </Box>
             </Box>
         </Box>
     )
