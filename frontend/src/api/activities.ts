@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from './client'
+import { useAuthStore } from '@/store/authStore'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -87,8 +88,11 @@ export function useActivities(params: ActivitiesParams = {}) {
 }
 
 export function useUpcomingActivities(hours = 48) {
+    const accessToken = useAuthStore((s) => s.accessToken)
     return useQuery({
         queryKey: activityKeys.upcoming(),
+        enabled: !!accessToken,
+        staleTime: 60_000, // 1 minute — évite les requêtes répétées sur focus
         queryFn: () =>
             apiClient
                 .get<ActivityList>('/activities/upcoming', { params: { hours } })
