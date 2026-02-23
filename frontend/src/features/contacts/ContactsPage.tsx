@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import {
+    Autocomplete,
     Box,
     Button,
     Chip,
@@ -42,6 +43,7 @@ import {
     type ContactOut,
 } from '@/api/contacts'
 import { exportApi } from '@/api/export'
+import { useCompanies } from '@/api/companies'
 
 const contactSchema = z.object({
     first_name: z.string().optional(),
@@ -52,20 +54,29 @@ const contactSchema = z.object({
     notes: z.string().optional(),
     tags: z.array(z.string()).default([]),
     consent_rgpd: z.boolean().default(false),
+    company_id: z.string().uuid().nullable().optional(),
 })
 
 type ContactForm = z.infer<typeof contactSchema>
 
 function CreateContactDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
     const createContact = useCreateContact()
+    const { data: companiesData } = useCompanies({ page_size: 200 })
+    const companies = companiesData?.items ?? []
+
     const { control, handleSubmit, reset, setValue, watch } = useForm<ContactForm>({
         resolver: zodResolver(contactSchema),
-        defaultValues: { tags: [], consent_rgpd: false },
+        defaultValues: { tags: [], consent_rgpd: false, company_id: null },
     })
     const tags = watch('tags')
+    const company_id = watch('company_id')
 
     const onSubmit = async (data: ContactForm) => {
-        await createContact.mutateAsync({ ...data, email: data.email || undefined })
+        await createContact.mutateAsync({
+            ...data,
+            email: data.email || undefined,
+            company_id: data.company_id ?? undefined,
+        })
         reset()
         onClose()
     }
@@ -93,6 +104,17 @@ function CreateContactDialog({ open, onClose }: { open: boolean; onClose: () => 
                         <Controller name="position" control={control} render={({ field }) => (
                             <TextField {...field} label="Poste" fullWidth size="small" />
                         )} />
+                        <Autocomplete
+                            options={companies}
+                            getOptionLabel={(o) => o.name}
+                            value={companies.find((c) => c.id === company_id) ?? null}
+                            onChange={(_e, val) => setValue('company_id', val?.id ?? null)}
+                            renderInput={(params) => (
+                                <TextField {...params} label="Entreprise (optionnel)" size="small" />
+                            )}
+                            isOptionEqualToValue={(o, v) => o.id === v.id}
+                            clearOnEscape
+                        />
                         <TagsInput value={tags} onChange={(t) => setValue('tags', t)} />
                         <Controller name="notes" control={control} render={({ field }) => (
                             <TextField {...field} label="Notes" multiline rows={3} fullWidth size="small" />
@@ -110,11 +132,15 @@ function CreateContactDialog({ open, onClose }: { open: boolean; onClose: () => 
 
 function EditContactDialog({ contact, onClose }: { contact: ContactOut | null; onClose: () => void }) {
     const updateContact = useUpdateContact()
+    const { data: companiesData } = useCompanies({ page_size: 200 })
+    const companies = companiesData?.items ?? []
+
     const { control, handleSubmit, reset, setValue, watch } = useForm<ContactForm>({
         resolver: zodResolver(contactSchema),
-        defaultValues: { tags: [], consent_rgpd: false },
+        defaultValues: { tags: [], consent_rgpd: false, company_id: null },
     })
     const tags = watch('tags')
+    const company_id = watch('company_id')
 
     React.useEffect(() => {
         if (contact) {
@@ -127,13 +153,21 @@ function EditContactDialog({ contact, onClose }: { contact: ContactOut | null; o
                 notes: contact.notes ?? '',
                 tags: contact.tags ?? [],
                 consent_rgpd: contact.consent_rgpd ?? false,
+                company_id: contact.company_id ?? null,
             })
         }
     }, [contact, reset])
 
     const onSubmit = async (data: ContactForm) => {
         if (!contact) return
-        await updateContact.mutateAsync({ id: contact.id, data: { ...data, email: data.email || undefined } })
+        await updateContact.mutateAsync({
+            id: contact.id,
+            data: {
+                ...data,
+                email: data.email || undefined,
+                company_id: data.company_id ?? null,
+            },
+        })
         onClose()
     }
 
@@ -160,6 +194,17 @@ function EditContactDialog({ contact, onClose }: { contact: ContactOut | null; o
                         <Controller name="position" control={control} render={({ field }) => (
                             <TextField {...field} label="Poste" fullWidth size="small" />
                         )} />
+                        <Autocomplete
+                            options={companies}
+                            getOptionLabel={(o) => o.name}
+                            value={companies.find((c) => c.id === company_id) ?? null}
+                            onChange={(_e, val) => setValue('company_id', val?.id ?? null)}
+                            renderInput={(params) => (
+                                <TextField {...params} label="Entreprise (optionnel)" size="small" />
+                            )}
+                            isOptionEqualToValue={(o, v) => o.id === v.id}
+                            clearOnEscape
+                        />
                         <TagsInput value={tags} onChange={(t) => setValue('tags', t)} />
                         <Controller name="notes" control={control} render={({ field }) => (
                             <TextField {...field} label="Notes" multiline rows={3} fullWidth size="small" />
