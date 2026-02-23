@@ -235,6 +235,7 @@ export function ContactsPage() {
     const [search, setSearch] = useState('')
     const [page, setPage] = useState(0)
     const [pageSize, setPageSize] = useState(25)
+    const [companyFilter, setCompanyFilter] = useState<string | null>(null)
     const [createOpen, setCreateOpen] = useState(false)
     const [importOpen, setImportOpen] = useState(false)
     const [editTarget, setEditTarget] = useState<ContactOut | null>(null)
@@ -248,8 +249,12 @@ export function ContactsPage() {
     const mergeContacts = useMergeContacts()
     const anonymizeContact = useAnonymizeContact()
 
+    const { data: companiesData } = useCompanies({ page_size: 200 })
+    const companies = companiesData?.items ?? []
+
     const { data, isLoading } = useContacts({
         search: search || undefined,
+        company_id: companyFilter || undefined,
         page: page + 1,
         page_size: pageSize,
     })
@@ -340,12 +345,24 @@ export function ContactsPage() {
                 </Stack>
             </Stack>
 
-            <Stack direction="row" spacing={2} mb={2}>
+            <Stack direction="row" spacing={2} mb={2} flexWrap="wrap">
                 <TextField
                     size="small" placeholder="Rechercher…" value={search}
                     onChange={(e) => { setSearch(e.target.value); setPage(0) }}
                     InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
                     sx={{ flex: 1, maxWidth: 320 }}
+                />
+                <Autocomplete
+                    options={companies}
+                    getOptionLabel={(o) => o.name}
+                    value={companies.find((c) => c.id === companyFilter) ?? null}
+                    onChange={(_e, val) => { setCompanyFilter(val?.id ?? null); setPage(0) }}
+                    renderInput={(params) => (
+                        <TextField {...params} size="small" label="Entreprise" sx={{ minWidth: 220 }} />
+                    )}
+                    isOptionEqualToValue={(o, v) => o.id === v.id}
+                    clearOnEscape
+                    sx={{ minWidth: 220 }}
                 />
             </Stack>
 
