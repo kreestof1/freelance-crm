@@ -13,6 +13,7 @@ import {
 } from '@dnd-kit/core'
 import {
     Alert,
+    Autocomplete,
     Box,
     Button,
     CircularProgress,
@@ -43,6 +44,7 @@ import {
 import { DealCard } from './DealCard'
 import { DealSlideOver } from './DealSlideOver'
 import { exportApi } from '@/api/export'
+import { useCompanies } from '@/api/companies'
 
 // ── Colonne Kanban droppable ──────────────────────────────────────────────────
 
@@ -160,6 +162,7 @@ const createSchema = z.object({
     title: z.string().min(1, 'Titre requis').max(300),
     amount: z.coerce.number().min(0).default(0),
     probability: z.coerce.number().min(0).max(100).default(0),
+    company_id: z.string().uuid().nullable().optional(),
 })
 type CreateForm = z.infer<typeof createSchema>
 
@@ -172,13 +175,16 @@ interface CreateDealDialogProps {
 
 function CreateDealDialog({ open, stage, defaultProbability, onClose }: CreateDealDialogProps) {
     const createDeal = useCreateDeal()
-    const { register, handleSubmit, reset, formState: { errors } } = useForm<CreateForm>({
+    const { data: companiesData } = useCompanies({ page_size: 200 })
+    const companies = companiesData?.items ?? []
+    const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<CreateForm>({
         resolver: zodResolver(createSchema),
-        defaultValues: { title: '', amount: 0, probability: defaultProbability },
+        defaultValues: { title: '', amount: 0, probability: defaultProbability, company_id: null },
     })
+    const companyId = watch('company_id')
 
     const onSubmit = async (values: CreateForm) => {
-        await createDeal.mutateAsync({ ...values, stage })
+        await createDeal.mutateAsync({ ...values, stage, company_id: values.company_id ?? null })
         reset()
         onClose()
     }
@@ -198,7 +204,16 @@ function CreateDealDialog({ open, stage, defaultProbability, onClose }: CreateDe
                         helperText={errors.title?.message}
                         autoFocus
                         fullWidth
+                    />
+                    <Autocomplete
+                        options={companies}
+                        getOptionLabel={(o) => o.name}
+                        value={companies.find((c) => c.id === companyId) ?? null}
+                        onChange={(_, v) => setValue('company_id', v?.id ?? null, { shouldDirty: true })}
                         size="small"
+                        renderInput={(params) => (
+                            <TextField {...params} label="Entreprise (optionnel)" fullWidth />
+                        )}
                     />
                     <Stack direction="row" spacing={1.5}>
                         <TextField

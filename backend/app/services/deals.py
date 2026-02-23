@@ -117,7 +117,7 @@ async def patch_deal(
     if deal.is_locked:
         # Seuls les champs non-verrouillés peuvent être modifiés
         locked_fields = {"amount", "expected_close"}
-        attempted = {k for k, v in data.model_dump(exclude_none=True).items() if k in locked_fields}
+        attempted = {k for k, v in data.model_dump(exclude_unset=True).items() if k in locked_fields}
         if attempted:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -125,7 +125,7 @@ async def patch_deal(
             )
 
     diff: dict = {}
-    for field, value in data.model_dump(exclude_none=True).items():
+    for field, value in data.model_dump(exclude_unset=True).items():
         old = getattr(deal, field, None)
         if old != value:
             diff[field] = {"from": str(old), "to": str(value)}

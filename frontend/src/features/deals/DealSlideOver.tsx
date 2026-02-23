@@ -7,6 +7,7 @@ import LockIcon from '@mui/icons-material/Lock'
 import SaveIcon from '@mui/icons-material/Save'
 import {
     Alert,
+    Autocomplete,
     Box,
     Button,
     Chip,
@@ -30,6 +31,7 @@ import { useEffect } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { type DealOut, type PipelineStageOut, useDeleteDeal, usePatchDeal } from '@/api/deals'
+import { type CompanyOut, useCompanies } from '@/api/companies'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { TagsInput } from '@/components/common/TagsInput'
 import { useState } from 'react'
@@ -46,6 +48,7 @@ const schema = z.object({
     origin: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
     tags: z.array(z.string()).default([]),
+    company_id: z.string().uuid().nullable().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -75,6 +78,8 @@ export function DealSlideOver({ deal, stages, open, onClose, onDeleted }: DealSl
     const patch = usePatchDeal()
     const deleteDeal = useDeleteDeal()
     const [confirmDelete, setConfirmDelete] = useState(false)
+    const { data: companiesData } = useCompanies({ page_size: 200 })
+    const companies = companiesData?.items ?? []
 
     const {
         control,
@@ -82,6 +87,7 @@ export function DealSlideOver({ deal, stages, open, onClose, onDeleted }: DealSl
         handleSubmit,
         reset,
         watch,
+        setValue,
         formState: { errors, isDirty },
     } = useForm<FormValues>({
         resolver: zodResolver(schema),
@@ -95,6 +101,7 @@ export function DealSlideOver({ deal, stages, open, onClose, onDeleted }: DealSl
             origin: null,
             notes: null,
             tags: [],
+            company_id: null,
         },
     })
 
@@ -111,12 +118,14 @@ export function DealSlideOver({ deal, stages, open, onClose, onDeleted }: DealSl
                 origin: deal.origin ?? null,
                 notes: deal.notes ?? null,
                 tags: deal.tags,
+                company_id: deal.company_id ?? null,
             })
         }
     }, [deal, reset])
 
     const amount = watch('amount')
     const probability = watch('probability')
+    const companyId = watch('company_id')
     const weightedPreview = (amount * probability) / 100
 
     const isLocked = deal?.is_locked ?? false
@@ -224,6 +233,18 @@ export function DealSlideOver({ deal, stages, open, onClose, onDeleted }: DealSl
                             fullWidth
                             size="small"
                             disabled={isLocked}
+                        />
+
+                        {/* Entreprise */}
+                        <Autocomplete<CompanyOut>
+                            options={companies}
+                            getOptionLabel={(o) => o.name}
+                            value={companies.find((c) => c.id === companyId) ?? null}
+                            onChange={(_, v) => setValue('company_id', v?.id ?? null, { shouldDirty: true })}
+                            size="small"
+                            renderInput={(params) => (
+                                <TextField {...params} label="Entreprise (optionnel)" fullWidth />
+                            )}
                         />
 
                         {/* Stage */}
