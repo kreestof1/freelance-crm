@@ -80,7 +80,7 @@ async def patch_lead(
     db: AsyncSession, lead: Lead, data: LeadPatch, actor_id: uuid.UUID | None = None
 ) -> Lead:
     diff: dict = {}
-    for field, value in data.model_dump(exclude_none=True).items():
+    for field, value in data.model_dump(exclude_unset=True).items():
         old = getattr(lead, field, None)
         if old != value:
             diff[field] = {"from": str(old), "to": str(value)}

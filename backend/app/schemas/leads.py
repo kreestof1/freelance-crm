@@ -39,13 +39,16 @@ class LeadCreate(BaseModel):
 
 
 class LeadPatch(BaseModel):
-    status: LeadStatus | None = None
-    score: int | None = Field(default=None, ge=0, le=100)
-    notes: str | None = Field(default=None, max_length=10000)
-    interest: str | None = Field(default=None, max_length=500)
-    tags: list[str] | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=200)
     email: EmailStr | None = None
     source: LeadSource | None = None
+    status: LeadStatus | None = None
+    score: int | None = Field(default=None, ge=0, le=100)
+    interest: str | None = Field(default=None, max_length=500)
+    description: str | None = Field(default=None, max_length=5000)
+    notes: str | None = Field(default=None, max_length=10000)
+    tags: list[str] | None = None
+    company_id: uuid.UUID | None = None
 
 
 class LeadOut(LeadBase):

@@ -22,6 +22,7 @@ export interface LeadOut {
     status: LeadStatus
     score?: number | null
     company_id?: string | null
+    company_name?: string | null
     contact_id?: string | null
     tags: string[]
     notes?: string | null

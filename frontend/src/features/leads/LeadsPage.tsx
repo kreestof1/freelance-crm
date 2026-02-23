@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import {
+    Autocomplete,
     Box,
     Button,
     Chip,
@@ -27,6 +28,7 @@ import { z } from 'zod'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { TagsInput } from '@/components/common/TagsInput'
+import { useCompanies } from '@/api/companies'
 import {
     useLeads,
     useCreateLead,
@@ -60,8 +62,7 @@ const createLeadSchema = z.object({
     status: z.enum(['Nouveau', 'Qualifié', 'Converti', 'Perdu']).optional(),
     score: z.number().min(0).max(100).optional().nullable(),
     notes: z.string().optional(),
-    tags: z.array(z.string()).default([]),
-})
+    tags: z.array(z.string()).default([]),    company_id: z.string().uuid().nullable().optional(),})
 
 const convertSchema = z.object({
     deal_title: z.string().min(1, 'Requis'),
@@ -77,14 +78,18 @@ type ConvertForm = z.infer<typeof convertSchema>
 
 function CreateLeadDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
     const createLead = useCreateLead()
+    const { data: companiesData } = useCompanies({ page_size: 200 })
+    const companies = companiesData?.items ?? []
+
     const { control, handleSubmit, reset, setValue, watch } = useForm<LeadForm>({
         resolver: zodResolver(createLeadSchema),
-        defaultValues: { source: 'web', tags: [] },
+        defaultValues: { source: 'web', tags: [], company_id: null },
     })
     const tags = watch('tags')
+    const company_id = watch('company_id')
 
     const onSubmit = async (data: LeadForm) => {
-        await createLead.mutateAsync({ ...data, email: data.email || undefined })
+        await createLead.mutateAsync({ ...data, email: data.email || undefined, company_id: data.company_id ?? undefined })
         reset()
         onClose()
     }
@@ -125,6 +130,17 @@ function CreateLeadDialog({ open, onClose }: { open: boolean; onClose: () => voi
                                 </TextField>
                             )}
                         />
+                        <Autocomplete
+                            options={companies}
+                            getOptionLabel={(o) => o.name}
+                            value={companies.find((c) => c.id === company_id) ?? null}
+                            onChange={(_e, val) => setValue('company_id', val?.id ?? null)}
+                            renderInput={(params) => (
+                                <TextField {...params} label="Entreprise (optionnel)" size="small" />
+                            )}
+                            isOptionEqualToValue={(o, v) => o.id === v.id}
+                            clearOnEscape
+                        />
                         <TagsInput value={tags} onChange={(t) => setValue('tags', t)} />
                         <Controller
                             name="notes"
@@ -152,17 +168,20 @@ const editLeadSchema = z.object({
     status: z.enum(['Nouveau', 'Qualifié', 'Converti', 'Perdu']),
     score: z.number().min(0).max(100).nullable().optional(),
     notes: z.string().optional().nullable(),
-    tags: z.array(z.string()).default([]),
-})
+    tags: z.array(z.string()).default([]),    company_id: z.string().uuid().nullable().optional(),})
 
 type EditLeadForm = z.infer<typeof editLeadSchema>
 
 function EditLeadDialog({ lead, onClose }: { lead: LeadOut | null; onClose: () => void }) {
     const patchLead = usePatchLead()
+    const { data: companiesData } = useCompanies({ page_size: 200 })
+    const companies = companiesData?.items ?? []
+
     const { control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<EditLeadForm>({
         resolver: zodResolver(editLeadSchema),
     })
     const tags = watch('tags') ?? []
+    const company_id = watch('company_id')
 
     React.useEffect(() => {
         if (lead) {
@@ -175,6 +194,7 @@ function EditLeadDialog({ lead, onClose }: { lead: LeadOut | null; onClose: () =
                 score: lead.score ?? null,
                 notes: lead.notes ?? '',
                 tags: lead.tags ?? [],
+                company_id: lead.company_id ?? null,
             })
         }
     }, [lead, reset])
@@ -193,6 +213,7 @@ function EditLeadDialog({ lead, onClose }: { lead: LeadOut | null; onClose: () =
                     score: data.score ?? null,
                     notes: data.notes || null,
                     tags: data.tags,
+                    company_id: data.company_id ?? null,
                 },
             })
             onClose()
@@ -239,6 +260,17 @@ function EditLeadDialog({ lead, onClose }: { lead: LeadOut | null; onClose: () =
                                 onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
                             />
                         )} />
+                        <Autocomplete
+                            options={companies}
+                            getOptionLabel={(o) => o.name}
+                            value={companies.find((c) => c.id === company_id) ?? null}
+                            onChange={(_e, val) => setValue('company_id', val?.id ?? null)}
+                            renderInput={(params) => (
+                                <TextField {...params} label="Entreprise (optionnel)" size="small" />
+                            )}
+                            isOptionEqualToValue={(o, v) => o.id === v.id}
+                            clearOnEscape
+                        />
                         <TagsInput value={tags} onChange={(t) => setValue('tags', t)} />
                         <Controller name="notes" control={control} render={({ field }) => (
                             <TextField {...field} value={field.value ?? ''} label="Notes" multiline rows={3} fullWidth size="small" />
@@ -360,6 +392,7 @@ export function LeadsPage() {
     const columns: ColumnDef<LeadOut>[] = [
         { key: 'name', header: 'Nom', sortable: true },
         { key: 'email', header: 'Email' },
+        { key: 'company_name', header: 'Entreprise', render: (row) => row.company_name ?? '—' },
         { key: 'source', header: 'Source' },
         {
             key: 'status',
