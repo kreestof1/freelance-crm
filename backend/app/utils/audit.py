@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, date
+from decimal import Decimal
 from typing import Any
 
 import structlog
@@ -25,6 +26,8 @@ def _to_json_safe(obj: Any) -> Any:
         return obj.isoformat()
     if isinstance(obj, uuid.UUID):
         return str(obj)
+    if isinstance(obj, Decimal):
+        return float(obj)
     return obj
 
 

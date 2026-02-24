@@ -19,6 +19,7 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import DeleteIcon from '@mui/icons-material/Delete'
+import EditIcon from '@mui/icons-material/Edit'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import DownloadIcon from '@mui/icons-material/Download'
 import { useForm, Controller } from 'react-hook-form'
@@ -33,6 +34,7 @@ import { exportApi } from '@/api/export'
 import {
     useProjects,
     useCreateProject,
+    usePatchProject,
     useDeleteProject,
     type ProjectOut,
     type ProjectStatus,
@@ -63,6 +65,167 @@ const createSchema = z.object({
 })
 type CreateForm = z.infer<typeof createSchema>
 
+const editSchema = z.object({
+    title: z.string().min(1, 'Requis').max(300),
+    status: z.enum(['Planifié', 'En cours', 'Suspendu', 'Clôturé']),
+    rate_type: z.enum(['tjm', 'forfait']),
+    rate_value: z.string().optional(),
+    budget_amount: z.string().optional(),
+    start_date: z.string().optional(),
+    end_date: z.string().optional(),
+    notes: z.string().optional(),
+})
+type EditForm = z.infer<typeof editSchema>
+
+// ── Edit Project Dialog ───────────────────────────────────────────────────────
+
+interface EditProjectDialogProps {
+    project: ProjectOut | null
+    onClose: () => void
+    onSave: (values: EditForm) => Promise<void>
+    isPending: boolean
+}
+
+function EditProjectDialog({ project, onClose, onSave, isPending }: EditProjectDialogProps) {
+    const { t } = useTranslation()
+    const { control, handleSubmit, reset, formState: { errors } } = useForm<EditForm>({
+        resolver: zodResolver(editSchema),
+    })
+
+    React.useEffect(() => {
+        if (project) {
+            reset({
+                title: project.title,
+                status: project.status,
+                rate_type: project.rate_type,
+                rate_value: project.rate_value ? String(project.rate_value) : '',
+                budget_amount: project.budget_amount ? String(project.budget_amount) : '',
+                start_date: project.start_date ?? '',
+                end_date: project.end_date ?? '',
+                notes: project.notes ?? '',
+            })
+        }
+    }, [project, reset])
+
+    return (
+        <Dialog open={!!project} onClose={onClose} maxWidth="sm" fullWidth>
+            <form onSubmit={handleSubmit(onSave)} noValidate>
+                <DialogTitle>Modifier la mission</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} pt={1}>
+                        <Controller
+                            name="title"
+                            control={control}
+                            render={({ field }) => (
+                                <TextField
+                                    {...field}
+                                    label={t('projects.titleLabel')}
+                                    error={!!errors.title}
+                                    helperText={errors.title?.message}
+                                    required
+                                    fullWidth
+                                />
+                            )}
+                        />
+                        <Stack direction="row" spacing={2}>
+                            <Controller
+                                name="status"
+                                control={control}
+                                render={({ field }) => (
+                                    <TextField select {...field} label={t('projects.statusLabel')} fullWidth>
+                                        {STATUS_OPTIONS.map((s) => (
+                                            <MenuItem key={s} value={s}>{s}</MenuItem>
+                                        ))}
+                                    </TextField>
+                                )}
+                            />
+                            <Controller
+                                name="rate_type"
+                                control={control}
+                                render={({ field }) => (
+                                    <TextField select {...field} label={t('projects.rateTypeLabel')} fullWidth>
+                                        <MenuItem value="tjm">TJM (€/jour)</MenuItem>
+                                        <MenuItem value="forfait">Forfait</MenuItem>
+                                    </TextField>
+                                )}
+                            />
+                        </Stack>
+                        <Stack direction="row" spacing={2}>
+                            <Controller
+                                name="rate_value"
+                                control={control}
+                                render={({ field }) => (
+                                    <TextField
+                                        {...field}
+                                        label={t('projects.rateValueLabel')}
+                                        type="number"
+                                        inputProps={{ min: 0 }}
+                                        fullWidth
+                                    />
+                                )}
+                            />
+                            <Controller
+                                name="budget_amount"
+                                control={control}
+                                render={({ field }) => (
+                                    <TextField
+                                        {...field}
+                                        label={t('projects.budgetAmountLabel')}
+                                        type="number"
+                                        inputProps={{ min: 0 }}
+                                        fullWidth
+                                    />
+                                )}
+                            />
+                        </Stack>
+                        <Stack direction="row" spacing={2}>
+                            <Controller
+                                name="start_date"
+                                control={control}
+                                render={({ field }) => (
+                                    <TextField
+                                        {...field}
+                                        label={t('projects.startDateLabel')}
+                                        type="date"
+                                        InputLabelProps={{ shrink: true }}
+                                        fullWidth
+                                    />
+                                )}
+                            />
+                            <Controller
+                                name="end_date"
+                                control={control}
+                                render={({ field }) => (
+                                    <TextField
+                                        {...field}
+                                        label={t('projects.endDateLabel')}
+                                        type="date"
+                                        InputLabelProps={{ shrink: true }}
+                                        fullWidth
+                                    />
+                                )}
+                            />
+                        </Stack>
+                        <Controller
+                            name="notes"
+                            control={control}
+                            render={({ field }) => (
+                                <TextField {...field} label={t('projects.notesLabel')} multiline rows={3} fullWidth />
+                            )}
+                        />
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={onClose}>{t('common.cancel')}</Button>
+                    <Button type="submit" variant="contained" disabled={isPending}>
+                        {isPending ? 'Enregistrement…' : t('common.save', 'Enregistrer')}
+                    </Button>
+                </DialogActions>
+            </form>
+        </Dialog>
+    )
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function ProjectsPage() {
@@ -72,9 +235,11 @@ export function ProjectsPage() {
     const [statusFilter, setStatusFilter] = useState<string>('')
     const [createOpen, setCreateOpen] = useState(false)
     const [deleteTarget, setDeleteTarget] = useState<ProjectOut | null>(null)
+    const [editTarget, setEditTarget] = useState<ProjectOut | null>(null)
 
     const { data, isLoading } = useProjects({ status: statusFilter || undefined })
     const createProject = useCreateProject()
+    const patchProject = usePatchProject()
     const deleteProject = useDeleteProject()
 
     const { control, handleSubmit, reset, formState: { errors } } = useForm<CreateForm>({
@@ -185,6 +350,11 @@ export function ProjectsPage() {
             render: (row) => (
                 <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                     <Tooltip title={t('common.edit')}>
+                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); setEditTarget(row) }}>
+                            <EditIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Ouvrir">
                         <IconButton size="small" onClick={() => navigate(`/projects/${row.id}`)}>
                             <OpenInNewIcon fontSize="small" />
                         </IconButton>
@@ -406,6 +576,30 @@ export function ProjectsPage() {
                     setDeleteTarget(null)
                 }}
                 onCancel={() => setDeleteTarget(null)}
+            />
+
+            {/* Dialog édition */}
+            <EditProjectDialog
+                project={editTarget}
+                onClose={() => setEditTarget(null)}
+                onSave={async (values) => {
+                    if (!editTarget) return
+                    await patchProject.mutateAsync({
+                        id: editTarget.id,
+                        data: {
+                            title: values.title,
+                            status: values.status,
+                            rate_type: values.rate_type,
+                            rate_value: values.rate_value || '0',
+                            budget_amount: values.budget_amount || null,
+                            start_date: values.start_date || null,
+                            end_date: values.end_date || null,
+                            notes: values.notes || null,
+                        },
+                    })
+                    setEditTarget(null)
+                }}
+                isPending={patchProject.isPending}
             />
         </Box>
     )

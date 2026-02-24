@@ -115,7 +115,7 @@ async def create_project(
 async def patch_project(
     db: AsyncSession, project: Project, data: ProjectPatch, actor_id: uuid.UUID | None = None
 ) -> Project:
-    changes = data.model_dump(exclude_none=True)
+    changes = data.model_dump(exclude_unset=True)
     if not changes:
         return project
     for key, val in changes.items():
