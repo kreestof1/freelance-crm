@@ -6,11 +6,10 @@ import { apiClient } from './client'
 export type LeadStatus = 'Nouveau' | 'Qualifié' | 'Converti' | 'Perdu'
 export type LeadSource =
     | 'web'
-    | 'linkedin'
-    | 'referral'
-    | 'email'
-    | 'phone'
-    | 'event'
+    | 'recommandation'
+    | 'evenement'
+    | 'réseau'
+    | 'publicité'
     | 'other'
 
 export interface LeadOut {

@@ -43,7 +43,16 @@ import {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const STATUS_OPTIONS: LeadStatus[] = ['Nouveau', 'Qualifié', 'Converti', 'Perdu']
-const SOURCE_OPTIONS: LeadSource[] = ['web', 'linkedin', 'referral', 'email', 'phone', 'event', 'other']
+const SOURCE_OPTIONS: LeadSource[] = ['web', 'recommandation', 'evenement', 'réseau', 'publicité', 'other']
+
+const SOURCE_LABELS: Record<LeadSource, string> = {
+    web: 'Web',
+    recommandation: 'Recommandation',
+    evenement: 'Événement',
+    réseau: 'Réseau',
+    publicité: 'Publicité',
+    other: 'Autre',
+}
 
 const STATUS_COLORS: Record<LeadStatus, 'default' | 'primary' | 'success' | 'error'> = {
     Nouveau: 'default',
@@ -58,11 +67,13 @@ const createLeadSchema = z.object({
     name: z.string().min(1, 'Requis'),
     email: z.string().email('Email invalide').optional().or(z.literal('')),
     phone: z.string().optional(),
-    source: z.enum(['web', 'linkedin', 'referral', 'email', 'phone', 'event', 'other']),
+    source: z.enum(['web', 'recommandation', 'evenement', 'réseau', 'publicité', 'other']),
     status: z.enum(['Nouveau', 'Qualifié', 'Converti', 'Perdu']).optional(),
     score: z.number().min(0).max(100).optional().nullable(),
     notes: z.string().optional(),
-    tags: z.array(z.string()).default([]),    company_id: z.string().uuid().nullable().optional(),})
+    tags: z.array(z.string()).default([]),
+    company_id: z.string().uuid().nullable().optional(),
+})
 
 const convertSchema = z.object({
     deal_title: z.string().min(1, 'Requis'),
@@ -125,7 +136,7 @@ function CreateLeadDialog({ open, onClose }: { open: boolean; onClose: () => voi
                             render={({ field }) => (
                                 <TextField {...field} select label="Source *" fullWidth size="small">
                                     {SOURCE_OPTIONS.map((s) => (
-                                        <MenuItem key={s} value={s}>{s}</MenuItem>
+                                        <MenuItem key={s} value={s}>{SOURCE_LABELS[s]}</MenuItem>
                                     ))}
                                 </TextField>
                             )}
@@ -164,11 +175,13 @@ const editLeadSchema = z.object({
     name: z.string().min(1, 'Requis'),
     email: z.union([z.string().email('Email invalide'), z.literal(''), z.null()]).optional(),
     phone: z.string().optional().nullable(),
-    source: z.enum(['web', 'linkedin', 'referral', 'email', 'phone', 'event', 'other']),
+    source: z.enum(['web', 'recommandation', 'evenement', 'réseau', 'publicité', 'other']),
     status: z.enum(['Nouveau', 'Qualifié', 'Converti', 'Perdu']),
     score: z.number().min(0).max(100).nullable().optional(),
     notes: z.string().optional().nullable(),
-    tags: z.array(z.string()).default([]),    company_id: z.string().uuid().nullable().optional(),})
+    tags: z.array(z.string()).default([]),
+    company_id: z.string().uuid().nullable().optional(),
+})
 
 type EditLeadForm = z.infer<typeof editLeadSchema>
 
@@ -240,7 +253,7 @@ function EditLeadDialog({ lead, onClose }: { lead: LeadOut | null; onClose: () =
                         <Stack direction="row" spacing={2}>
                             <Controller name="source" control={control} render={({ field }) => (
                                 <TextField {...field} select label="Source *" fullWidth size="small">
-                                    {SOURCE_OPTIONS.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+                                    {SOURCE_OPTIONS.map((s) => <MenuItem key={s} value={s}>{SOURCE_LABELS[s]}</MenuItem>)}
                                 </TextField>
                             )} />
                             <Controller name="status" control={control} render={({ field }) => (
@@ -393,7 +406,7 @@ export function LeadsPage() {
         { key: 'name', header: 'Nom', sortable: true },
         { key: 'email', header: 'Email' },
         { key: 'company_name', header: 'Entreprise', render: (row) => row.company_name ?? '—' },
-        { key: 'source', header: 'Source' },
+        { key: 'source', header: 'Source', render: (row) => SOURCE_LABELS[row.source as LeadSource] ?? row.source },
         {
             key: 'status',
             header: 'Statut',
