@@ -66,6 +66,7 @@ class DealOut(BaseModel):
     # Champs enrichis (join)
     company_name: str | None = None
     contact_name: str | None = None
+    has_project: bool = False
 
     model_config = {"from_attributes": True}
 

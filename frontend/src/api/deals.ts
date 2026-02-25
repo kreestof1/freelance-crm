@@ -30,6 +30,7 @@ export interface DealOut {
     contact_id: string | null
     company_name: string | null
     contact_name: string | null
+    has_project: boolean
     created_at: string
     updated_at: string
 }

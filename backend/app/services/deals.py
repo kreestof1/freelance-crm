@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.company import Company
 from app.models.contact import Contact
 from app.models.deal import Deal
+from app.models.project import Project
 from app.schemas.deals import DealCreate, DealMove, DealOut, DealPatch
 from app.utils.audit import write_audit
 
@@ -31,9 +32,13 @@ async def _enrich(db: AsyncSession, deal: Deal) -> DealOut:
         c = row.one_or_none()
         if c:
             contact_name = f"{c.first_name} {c.last_name}".strip()
+    has_project_row = await db.execute(
+        select(Project.id).where(Project.deal_id == deal.id, Project.deleted_at.is_(None)).limit(1)
+    )
     out = DealOut.model_validate(deal)
     out.company_name = company_name
     out.contact_name = contact_name
+    out.has_project = has_project_row.scalar_one_or_none() is not None
     return out
 
 
@@ -55,11 +60,23 @@ async def _enrich_batch(db: AsyncSession, deals: list[Deal]) -> list[DealOut]:
         )
         contact_map = {r.id: f"{r.first_name} {r.last_name}".strip() for r in rows}
 
+    # Batch-load has_project
+    deal_ids = {d.id for d in deals}
+    project_deal_ids: set[uuid.UUID] = set()
+    if deal_ids:
+        proj_rows = await db.execute(
+            select(Project.deal_id).where(
+                Project.deal_id.in_(deal_ids), Project.deleted_at.is_(None)
+            )
+        )
+        project_deal_ids = {r for r in proj_rows.scalars()}
+
     results = []
     for deal in deals:
         out = DealOut.model_validate(deal)
         out.company_name = company_map.get(deal.company_id) if deal.company_id else None  # type: ignore[arg-type]
         out.contact_name = contact_map.get(deal.contact_id) if deal.contact_id else None  # type: ignore[arg-type]
+        out.has_project = deal.id in project_deal_ids
         results.append(out)
     return results
 

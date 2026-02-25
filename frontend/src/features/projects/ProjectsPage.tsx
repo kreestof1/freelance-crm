@@ -263,7 +263,7 @@ export function ProjectsPage() {
     const columns: ColumnDef<ProjectOut>[] = [
         {
             key: 'title',
-            label: t('projects.titleLabel'),
+            header: t('projects.titleLabel'),
             render: (row) => (
                 <Typography
                     variant="body2"
@@ -277,7 +277,7 @@ export function ProjectsPage() {
         },
         {
             key: 'status',
-            label: t('projects.statusLabel'),
+            header: t('projects.statusLabel'),
             render: (row) => (
                 <Chip
                     label={row.status}
@@ -288,7 +288,7 @@ export function ProjectsPage() {
         },
         {
             key: 'milestones',
-            label: t('projects.milestonesLabel'),
+            header: t('projects.milestonesLabel'),
             render: (row) => (
                 <Box sx={{ minWidth: 100 }}>
                     <Typography variant="caption" color="text.secondary">
@@ -313,7 +313,7 @@ export function ProjectsPage() {
         },
         {
             key: 'rate',
-            label: t('projects.rateLabel'),
+            header: t('projects.rateLabel'),
             render: (row) => (
                 <Typography variant="body2">
                     {row.rate_type === 'tjm'
@@ -324,7 +324,7 @@ export function ProjectsPage() {
         },
         {
             key: 'company',
-            label: t('projects.companyLabel'),
+            header: t('projects.companyLabel'),
             render: (row) => (
                 <Typography variant="body2" color="text.secondary">
                     {row.company_name ?? '—'}
@@ -333,7 +333,7 @@ export function ProjectsPage() {
         },
         {
             key: 'upcoming',
-            label: t('projects.upcomingLabel'),
+            header: t('projects.upcomingLabel'),
             render: (row) =>
                 row.upcoming_milestones.length > 0 ? (
                     <Chip
@@ -346,7 +346,7 @@ export function ProjectsPage() {
         },
         {
             key: 'actions',
-            label: '',
+            header: '',
             render: (row) => (
                 <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                     <Tooltip title={t('common.edit')}>
