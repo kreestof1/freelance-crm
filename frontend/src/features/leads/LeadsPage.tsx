@@ -364,7 +364,7 @@ function ConvertLeadDialog({
                             control={control}
                             render={({ field }) => (
                                 <TextField {...field} select label="Étape" fullWidth size="small">
-                                    {['Qualification', 'Proposal', 'Negotiation', 'Won', 'Lost'].map((s) => (
+                                    {['Qualification', 'Proposition', 'Négociation', 'Gagné', 'Perdu'].map((s) => (
                                         <MenuItem key={s} value={s}>{s}</MenuItem>
                                     ))}
                                 </TextField>

@@ -48,9 +48,9 @@ import { useCompanies } from '@/api/companies'
 const contactSchema = z.object({
     first_name: z.string().optional(),
     last_name: z.string().optional(),
-    email: z.string().email('Email invalide').optional().or(z.literal('')),
+    email: z.string().min(1, 'Email requis').email('Email invalide'),
     phone: z.string().optional(),
-    position: z.string().optional(),
+    role: z.string().optional(),
     notes: z.string().optional(),
     tags: z.array(z.string()).default([]),
     consent_rgpd: z.boolean().default(false),
@@ -74,7 +74,6 @@ function CreateContactDialog({ open, onClose }: { open: boolean; onClose: () => 
     const onSubmit = async (data: ContactForm) => {
         await createContact.mutateAsync({
             ...data,
-            email: data.email || undefined,
             company_id: data.company_id ?? undefined,
         })
         reset()
@@ -96,12 +95,12 @@ function CreateContactDialog({ open, onClose }: { open: boolean; onClose: () => 
                             )} />
                         </Stack>
                         <Controller name="email" control={control} render={({ field, fieldState }) => (
-                            <TextField {...field} label="Email" type="email" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth size="small" />
+                            <TextField {...field} label="Email *" type="email" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth size="small" />
                         )} />
                         <Controller name="phone" control={control} render={({ field }) => (
                             <TextField {...field} label="Téléphone" fullWidth size="small" />
                         )} />
-                        <Controller name="position" control={control} render={({ field }) => (
+                        <Controller name="role" control={control} render={({ field }) => (
                             <TextField {...field} label="Poste" fullWidth size="small" />
                         )} />
                         <Autocomplete
@@ -149,7 +148,7 @@ function EditContactDialog({ contact, onClose }: { contact: ContactOut | null; o
                 last_name: contact.last_name ?? '',
                 email: contact.email ?? '',
                 phone: contact.phone ?? '',
-                position: contact.position ?? '',
+                role: contact.role ?? '',
                 notes: contact.notes ?? '',
                 tags: contact.tags ?? [],
                 consent_rgpd: contact.consent_rgpd ?? false,
@@ -164,7 +163,6 @@ function EditContactDialog({ contact, onClose }: { contact: ContactOut | null; o
             id: contact.id,
             data: {
                 ...data,
-                email: data.email || undefined,
                 company_id: data.company_id ?? null,
             },
         })
@@ -186,12 +184,12 @@ function EditContactDialog({ contact, onClose }: { contact: ContactOut | null; o
                             )} />
                         </Stack>
                         <Controller name="email" control={control} render={({ field, fieldState }) => (
-                            <TextField {...field} label="Email" type="email" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth size="small" />
+                            <TextField {...field} label="Email *" type="email" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth size="small" />
                         )} />
                         <Controller name="phone" control={control} render={({ field }) => (
                             <TextField {...field} label="Téléphone" fullWidth size="small" />
                         )} />
-                        <Controller name="position" control={control} render={({ field }) => (
+                        <Controller name="role" control={control} render={({ field }) => (
                             <TextField {...field} label="Poste" fullWidth size="small" />
                         )} />
                         <Autocomplete
@@ -275,7 +273,7 @@ export function ContactsPage() {
         },
         { key: 'email', header: 'Email' },
         { key: 'phone', header: 'Téléphone' },
-        { key: 'position', header: 'Poste' },
+        { key: 'role', header: 'Poste' },
         { key: 'company_name', header: 'Entreprise', render: (row) => row.company_name ?? '—' },
         {
             key: 'tags', header: 'Tags',

@@ -48,7 +48,7 @@ function CreateCompanyDialog({ open, onClose }: { open: boolean; onClose: () => 
     const createCompany = useCreateCompany()
     const { control, handleSubmit, reset, setValue, watch } = useForm<CompanyForm>({
         resolver: zodResolver(createCompanySchema),
-        defaultValues: { tags: [] },
+        defaultValues: { name: '', sector: '', website: '', notes: '', tags: [] },
     })
     const tags = watch('tags')
 
@@ -92,7 +92,7 @@ function EditCompanyDialog({ company, onClose }: { company: CompanyOut | null; o
     const updateCompany = useUpdateCompany()
     const { control, handleSubmit, reset, setValue, watch } = useForm<CompanyForm>({
         resolver: zodResolver(createCompanySchema),
-        defaultValues: { tags: [] },
+        defaultValues: { name: '', sector: '', website: '', notes: '', tags: [] },
     })
     const tags = watch('tags')
 

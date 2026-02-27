@@ -9,7 +9,7 @@ export interface ContactOut {
     last_name?: string | null
     email?: string | null
     phone?: string | null
-    position?: string | null
+    role?: string | null
     company_id?: string | null
     company_name?: string | null
     tags: string[]
@@ -25,9 +25,9 @@ export interface ContactOut {
 export interface ContactCreate {
     first_name?: string | null
     last_name?: string | null
-    email?: string | null
+    email: string
     phone?: string | null
-    position?: string | null
+    role?: string | null
     company_id?: string | null
     tags?: string[]
     notes?: string | null
