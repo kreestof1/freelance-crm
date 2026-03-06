@@ -8,7 +8,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 ActivityType = Literal["Appel", "Email", "Tâche", "RDV"]
-RelatedType = Literal["contact", "deal", "project"]
+RelatedType = Literal["contact", "deal", "project", "lead"]
 
 
 class ActivityCreate(BaseModel):

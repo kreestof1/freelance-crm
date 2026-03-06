@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/authStore'
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type ActivityType = 'Appel' | 'Email' | 'Tâche' | 'RDV'
-export type ActivityRelatedType = 'contact' | 'deal' | 'project'
+export type ActivityRelatedType = 'contact' | 'deal' | 'project' | 'lead'
 
 export interface ActivityOut {
     id: string

@@ -37,6 +37,10 @@ async def _enrich(db: AsyncSession, activity: Activity) -> ActivityOut:
         elif activity.related_type == "project":
             row = await db.execute(select(Project.title).where(Project.id == eid))
             related_label = row.scalar_one_or_none()
+        elif activity.related_type == "lead":
+            from app.models.lead import Lead
+            row = await db.execute(select(Lead.name).where(Lead.id == eid))
+            related_label = row.scalar_one_or_none()
 
     out = ActivityOut.model_validate(activity)
     out.related_label = related_label

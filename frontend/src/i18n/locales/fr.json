@@ -187,6 +187,13 @@
             "Email": "Email",
             "Tâche": "Tâche",
             "RDV": "RDV"
+        },
+        "linkedTypeLabel": "Lier à",
+        "noLink": "— Aucun —",
+        "linkedEntityPlaceholder": "Rechercher...",
+        "relatedTypes": {
+            "lead": "Prospect",
+            "contact": "Contact"
         }
     },
     "search": {

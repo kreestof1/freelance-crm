@@ -188,6 +188,13 @@
             "Email": "Email",
             "Tâche": "Task",
             "RDV": "Meeting"
+        },
+        "linkedTypeLabel": "Link to",
+        "noLink": "— None —",
+        "linkedEntityPlaceholder": "Search...",
+        "relatedTypes": {
+            "lead": "Lead",
+            "contact": "Contact"
         }
     },
     "search": {

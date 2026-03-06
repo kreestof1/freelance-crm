@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import {
+    Autocomplete,
     Box,
     Button,
     Chip,
@@ -43,7 +44,10 @@ import {
     usePatchActivity,
     type ActivityOut,
     type ActivityType,
+    type ActivityRelatedType,
 } from '@/api/activities'
+import { useLeads } from '@/api/leads'
+import { useContacts } from '@/api/contacts'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -124,15 +128,95 @@ function ActivityDialog({ open, onClose, initial }: ActivityDialogProps) {
         formState: { errors, isSubmitting },
     } = useForm<ActivityForm>({ resolver: zodResolver(activitySchema), defaultValues })
 
+    // Lien vers un prospect ou un contact
+    const isLegacyLink = !!(
+        initial?.related_type &&
+        initial.related_type !== 'lead' &&
+        initial.related_type !== 'contact'
+    )
+    const [linkedType, setLinkedType] = useState<'lead' | 'contact' | ''>(
+        !isLegacyLink && (initial?.related_type === 'lead' || initial?.related_type === 'contact')
+            ? (initial.related_type as 'lead' | 'contact')
+            : '',
+    )
+    const [linkedEntity, setLinkedEntity] = useState<{ id: string; label: string } | null>(
+        !isLegacyLink && initial?.related_id && initial?.related_label
+            ? { id: initial.related_id, label: initial.related_label }
+            : null,
+    )
+    const [entitySearch, setEntitySearch] = useState('')
+
+    const { data: leadsData, isLoading: leadsLoading } = useLeads({
+        search: entitySearch || undefined,
+        page_size: 100,
+    })
+    const { data: contactsData, isLoading: contactsLoading } = useContacts({
+        search: entitySearch || undefined,
+        page_size: 100,
+    })
+
+    const entityOptions = useMemo(() => {
+        if (linkedType === 'lead') {
+            return (leadsData?.items ?? []).map((l) => ({ id: l.id, label: l.name }))
+        }
+        if (linkedType === 'contact') {
+            return (contactsData?.items ?? []).map((c) => ({
+                id: c.id,
+                label:
+                    [c.first_name, c.last_name].filter(Boolean).join(' ') ||
+                    (c.email ?? c.id),
+            }))
+        }
+        return [] as { id: string; label: string }[]
+    }, [linkedType, leadsData, contactsData])
+
+    const autocompleteOptions = useMemo(
+        () =>
+            linkedEntity && !entityOptions.some((o) => o.id === linkedEntity.id)
+                ? [linkedEntity, ...entityOptions]
+                : entityOptions,
+        [entityOptions, linkedEntity],
+    )
+
     React.useEffect(() => {
-        if (open) reset(defaultValues)
+        if (open) {
+            const legacy = !!(
+                initial?.related_type &&
+                initial.related_type !== 'lead' &&
+                initial.related_type !== 'contact'
+            )
+            setLinkedType(
+                !legacy &&
+                (initial?.related_type === 'lead' || initial?.related_type === 'contact')
+                    ? (initial.related_type as 'lead' | 'contact')
+                    : '',
+            )
+            setLinkedEntity(
+                !legacy && initial?.related_id && initial?.related_label
+                    ? { id: initial.related_id, label: initial.related_label }
+                    : null,
+            )
+            setEntitySearch('')
+            reset(defaultValues)
+        }
     }, [open, reset, defaultValues])
 
     const onSubmit = async (values: ActivityForm) => {
+        const legacy = !!(
+            initial?.related_type &&
+            initial.related_type !== 'lead' &&
+            initial.related_type !== 'contact'
+        )
         const payload = {
             ...values,
             when: fromLocalDateTimeInput(values.when),
             reminder_at: values.reminder_at ? fromLocalDateTimeInput(values.reminder_at) : null,
+            ...(legacy
+                ? {}
+                : {
+                      related_type: (linkedType || null) as ActivityRelatedType | null,
+                      related_id: linkedEntity?.id ?? null,
+                  }),
         }
         if (initial) {
             await patchActivity.mutateAsync({ id: initial.id, data: payload })
@@ -198,6 +282,67 @@ function ActivityDialog({ open, onClose, initial }: ActivityDialogProps) {
                         multiline
                         rows={3}
                     />
+                    {/* Lien prospect / contact */}
+                    {isLegacyLink ? (
+                        <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
+                            <Typography variant="body2" color="text.secondary">
+                                {t('activities.linkedTypeLabel')} :
+                            </Typography>
+                            <Chip
+                                label={`${t(`search.type.${initial!.related_type!}`)} — ${initial!.related_label ?? initial!.related_id}`}
+                                size="small"
+                                variant="outlined"
+                            />
+                        </Stack>
+                    ) : (
+                        <>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>{t('activities.linkedTypeLabel')}</InputLabel>
+                                <Select
+                                    value={linkedType}
+                                    label={t('activities.linkedTypeLabel')}
+                                    onChange={(e) => {
+                                        setLinkedType(e.target.value as 'lead' | 'contact' | '')
+                                        setLinkedEntity(null)
+                                        setEntitySearch('')
+                                    }}
+                                >
+                                    <MenuItem value="">{t('activities.noLink')}</MenuItem>
+                                    <MenuItem value="lead">
+                                        {t('activities.relatedTypes.lead')}
+                                    </MenuItem>
+                                    <MenuItem value="contact">
+                                        {t('activities.relatedTypes.contact')}
+                                    </MenuItem>
+                                </Select>
+                            </FormControl>
+                            {linkedType !== '' && (
+                                <Autocomplete
+                                    size="small"
+                                    options={autocompleteOptions}
+                                    getOptionLabel={(o) => o.label}
+                                    isOptionEqualToValue={(a, b) => a.id === b.id}
+                                    value={linkedEntity}
+                                    loading={linkedType === 'lead' ? leadsLoading : contactsLoading}
+                                    loadingText={t('common.loading')}
+                                    onChange={(_, value) => setLinkedEntity(value)}
+                                    onInputChange={(_, value) => setEntitySearch(value)}
+                                    filterOptions={(x) => x}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label={
+                                                linkedType === 'lead'
+                                                    ? t('activities.relatedTypes.lead')
+                                                    : t('activities.relatedTypes.contact')
+                                            }
+                                            placeholder={t('activities.linkedEntityPlaceholder')}
+                                        />
+                                    )}
+                                />
+                            )}
+                        </>
+                    )}
                     <TextField
                         {...register('reminder_at')}
                         label={t('activities.reminderLabel')}
@@ -300,9 +445,19 @@ function ActivityCard({ activity, onEdit, onDelete }: ActivityCardProps) {
                     </Stack>
 
                     {activity.related_label && (
-                        <Typography variant="body2" color="primary" fontWeight={500} mt={0.5}>
-                            {activity.related_label}
-                        </Typography>
+                        <Stack direction="row" alignItems="center" gap={0.5} mt={0.5} flexWrap="wrap">
+                            {activity.related_type && (
+                                <Chip
+                                    label={t(`search.type.${activity.related_type}`)}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ height: 18, fontSize: '0.65rem' }}
+                                />
+                            )}
+                            <Typography variant="body2" color="primary" fontWeight={500}>
+                                {activity.related_label}
+                            </Typography>
+                        </Stack>
                     )}
                     {activity.outcome && (
                         <Typography variant="body2" mt={0.5}>
