@@ -262,6 +262,15 @@ export function ProjectsPage() {
 
     const columns: ColumnDef<ProjectOut>[] = [
         {
+            key: 'company',
+            header: t('projects.companyLabel'),
+            render: (row) => (
+                <Typography variant="body2" color="text.secondary">
+                    {row.company_name ?? '—'}
+                </Typography>
+            ),
+        },
+        {
             key: 'title',
             header: t('projects.titleLabel'),
             render: (row) => (
@@ -319,15 +328,6 @@ export function ProjectsPage() {
                     {row.rate_type === 'tjm'
                         ? `${Number(row.rate_value).toLocaleString('fr-FR')} €/j`
                         : `${Number(row.budget_amount ?? 0).toLocaleString('fr-FR')} € forfait`}
-                </Typography>
-            ),
-        },
-        {
-            key: 'company',
-            header: t('projects.companyLabel'),
-            render: (row) => (
-                <Typography variant="body2" color="text.secondary">
-                    {row.company_name ?? '—'}
                 </Typography>
             ),
         },
