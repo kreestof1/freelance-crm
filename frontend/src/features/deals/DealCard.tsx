@@ -2,6 +2,7 @@ import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import ArticleIcon from '@mui/icons-material/Article'
 import BusinessIcon from '@mui/icons-material/Business'
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import LockIcon from '@mui/icons-material/Lock'
 import PersonIcon from '@mui/icons-material/Person'
 import {
@@ -168,6 +169,16 @@ export function DealCard({ deal, onClick, isDragging = false }: DealCardProps) {
                         </Typography>
                     )}
                 </Box>
+            )}
+
+            {/* Indicateur mission créée (opportunités gagnées) */}
+            {deal.is_locked && deal.has_project && (
+                <Stack direction="row" alignItems="center" spacing={0.5} mt={0.75}>
+                    <CheckCircleOutlineIcon sx={{ fontSize: 13, color: 'success.main' }} />
+                    <Typography variant="caption" color="success.main" fontWeight={600}>
+                        Mission créée
+                    </Typography>
+                </Stack>
             )}
         </Paper>
     )
