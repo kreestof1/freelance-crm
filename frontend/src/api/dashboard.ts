@@ -32,11 +32,22 @@ export interface ForecastDashboard {
     next_3_months: ForecastPeriod[]
 }
 
+export interface MissionMonthPoint {
+    label: string
+    month: string   // YYYY-MM
+    count: number
+}
+
+export interface MissionsPerMonthDashboard {
+    points: MissionMonthPoint[]
+}
+
 // ── API calls ─────────────────────────────────────────────────────────────────
 
 export const dashboardApi = {
     pipeline: () => apiClient.get<PipelineDashboard>('/dashboard/pipeline').then((r) => r.data),
     forecast: () => apiClient.get<ForecastDashboard>('/dashboard/forecast').then((r) => r.data),
+    missionsPerMonth: () => apiClient.get<MissionsPerMonthDashboard>('/dashboard/missions-per-month').then((r) => r.data),
 }
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
@@ -54,5 +65,13 @@ export function useForecastDashboard() {
         queryKey: ['dashboard', 'forecast'],
         queryFn: dashboardApi.forecast,
         staleTime: 60_000, // 1min
+    })
+}
+
+export function useMissionsPerMonth() {
+    return useQuery({
+        queryKey: ['dashboard', 'missions-per-month'],
+        queryFn: dashboardApi.missionsPerMonth,
+        staleTime: 60_000,
     })
 }

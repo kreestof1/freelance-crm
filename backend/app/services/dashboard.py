@@ -5,12 +5,20 @@ import calendar
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import extract, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.deal import Deal
 from app.models.pipeline_stage import PipelineStage
-from app.schemas.dashboard import ForecastDashboard, ForecastPeriod, PipelineDashboard, StageAggregate
+from app.models.project import Project
+from app.schemas.dashboard import (
+    ForecastDashboard,
+    ForecastPeriod,
+    MissionMonthPoint,
+    MissionsPerMonthDashboard,
+    PipelineDashboard,
+    StageAggregate,
+)
 
 
 def _add_months(d: date, months: int) -> date:
@@ -134,3 +142,45 @@ async def get_forecast_dashboard(db: AsyncSession) -> ForecastDashboard:
         next_months.append(await _compute_period(s, e, _period_label(s)))
 
     return ForecastDashboard(current_month=current, next_3_months=next_months)
+
+
+async def get_missions_per_month(db: AsyncSession) -> MissionsPerMonthDashboard:
+    """
+    Retourne le nombre de missions (projets) clôturées par mois
+    sur les 12 derniers mois (mois courant inclus).
+    """
+    today = date.today()
+    month_start = today.replace(day=1)
+
+    # Les 12 mois de [mois-11 … mois courant]
+    months = [_add_months(month_start, -i) for i in range(11, -1, -1)]
+    range_start = months[0]
+    range_end = _month_end(months[-1])
+
+    q = (
+        select(
+            extract("year", Project.end_date).label("yr"),
+            extract("month", Project.end_date).label("mo"),
+            func.count(Project.id).label("cnt"),
+        )
+        .where(
+            Project.deleted_at.is_(None),
+            Project.status == "Clôturé",
+            Project.end_date.isnot(None),
+            Project.end_date >= range_start,
+            Project.end_date <= range_end,
+        )
+        .group_by("yr", "mo")
+    )
+    rows = await db.execute(q)
+    result_map = {(int(r.yr), int(r.mo)): r.cnt for r in rows}
+
+    points = [
+        MissionMonthPoint(
+            label=_period_label(m),
+            month=f"{m.year:04d}-{m.month:02d}",
+            count=result_map.get((m.year, m.month), 0),
+        )
+        for m in months
+    ]
+    return MissionsPerMonthDashboard(points=points)

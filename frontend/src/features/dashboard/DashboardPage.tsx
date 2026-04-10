@@ -23,7 +23,7 @@ import {
     XAxis,
     YAxis,
 } from 'recharts'
-import { useForecastDashboard, usePipelineDashboard } from '@/api/dashboard'
+import { useForecastDashboard, useMissionsPerMonth, usePipelineDashboard } from '@/api/dashboard'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -307,6 +307,102 @@ function ForecastSection() {
     )
 }
 
+// ── Missions par mois ─────────────────────────────────────────────────────────
+
+interface MissionsTooltipProps {
+    active?: boolean
+    payload?: Array<{ value: number }>
+    label?: string
+}
+
+function MissionsTooltip({ active, payload, label }: MissionsTooltipProps) {
+    if (!active || !payload?.length) return null
+    const count = payload[0].value
+    return (
+        <Paper elevation={4} sx={{ p: 1.5, borderRadius: 2, minWidth: 140 }}>
+            <Typography variant="caption" fontWeight={700} display="block" mb={0.5}>
+                {label}
+            </Typography>
+            <Typography variant="caption" fontWeight={700} color="primary.main">
+                {count} mission{count > 1 ? 's' : ''}
+            </Typography>
+        </Paper>
+    )
+}
+
+function MissionsPerMonthSection() {
+    const theme = useTheme()
+    const { data, isLoading, isError } = useMissionsPerMonth()
+
+    if (isLoading) return <CircularProgress size={24} />
+    if (isError || !data) return <Alert severity="error">Erreur missions par mois</Alert>
+
+    const chartData = data.points.map((p) => ({ name: p.label, Missions: p.count }))
+    const maxCount = Math.max(...data.points.map((p) => p.count), 1)
+    const totalYear = data.points.reduce((acc, p) => acc + p.count, 0)
+
+    return (
+        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+                <Box>
+                    <Typography variant="subtitle1" fontWeight={700}>
+                        Missions réalisées par mois
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        Projets clôturés — 12 derniers mois
+                    </Typography>
+                </Box>
+                <Chip
+                    label={`${totalYear} au total`}
+                    size="small"
+                    sx={{
+                        bgcolor: alpha(theme.palette.secondary.main, 0.12),
+                        color: 'secondary.main',
+                        fontWeight: 700,
+                    }}
+                />
+            </Stack>
+
+            <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={chartData} barGap={4}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.palette.divider} />
+                    <XAxis
+                        dataKey="name"
+                        tick={{ fontSize: 11, fill: theme.palette.text.secondary }}
+                        axisLine={false}
+                        tickLine={false}
+                        interval={0}
+                        angle={-30}
+                        textAnchor="end"
+                        height={48}
+                    />
+                    <YAxis
+                        allowDecimals={false}
+                        domain={[0, Math.ceil(maxCount * 1.2) || 1]}
+                        tick={{ fontSize: 11, fill: theme.palette.text.secondary }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={28}
+                    />
+                    <Tooltip content={<MissionsTooltip />} cursor={{ fill: alpha(theme.palette.secondary.main, 0.06) }} />
+                    <Bar dataKey="Missions" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                        {chartData.map((entry, idx) => (
+                            <Cell
+                                key={idx}
+                                fill={
+                                    entry.Missions === maxCount
+                                        ? theme.palette.secondary.main
+                                        : alpha(theme.palette.secondary.main, 0.55)
+                                }
+                            />
+                        ))}
+                    </Bar>
+                </BarChart>
+            </ResponsiveContainer>
+        </Paper>
+    )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function DashboardPage() {
@@ -323,6 +419,8 @@ export function DashboardPage() {
                 <PipelineSection />
                 <Divider />
                 <ForecastSection />
+                <Divider />
+                <MissionsPerMonthSection />
             </Stack>
         </Box>
     )

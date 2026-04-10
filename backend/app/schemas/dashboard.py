@@ -38,3 +38,15 @@ class ForecastDashboard(BaseModel):
     """Forecast : mois courant + 3 mois glissants."""
     current_month: ForecastPeriod
     next_3_months: list[ForecastPeriod]
+
+
+class MissionMonthPoint(BaseModel):
+    """Nombre de missions clôturées pour un mois donné."""
+    label: str
+    month: str  # format YYYY-MM
+    count: int
+
+
+class MissionsPerMonthDashboard(BaseModel):
+    """Missions clôturées par mois (12 derniers mois)."""
+    points: list[MissionMonthPoint]

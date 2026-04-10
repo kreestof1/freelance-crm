@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
-from app.schemas.dashboard import ForecastDashboard, PipelineDashboard
-from app.services.dashboard import get_forecast_dashboard, get_pipeline_dashboard
+from app.schemas.dashboard import ForecastDashboard, MissionsPerMonthDashboard, PipelineDashboard
+from app.services.dashboard import get_forecast_dashboard, get_missions_per_month, get_pipeline_dashboard
 
 router = APIRouter()
 DB = Annotated[AsyncSession, Depends(get_db)]
@@ -27,3 +27,9 @@ async def pipeline_dashboard(db: DB, current_user: CurrentUser) -> PipelineDashb
 async def forecast_dashboard(db: DB, current_user: CurrentUser) -> ForecastDashboard:
     """Forecast : mois courant + 3 mois glissants (deals non-Perdus avec expected_close)."""
     return await get_forecast_dashboard(db)
+
+
+@router.get("/missions-per-month", response_model=MissionsPerMonthDashboard)
+async def missions_per_month(db: DB, current_user: CurrentUser) -> MissionsPerMonthDashboard:
+    """Nombre de missions clôturées par mois sur les 12 derniers mois."""
+    return await get_missions_per_month(db)
