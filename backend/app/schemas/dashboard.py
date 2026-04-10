@@ -50,3 +50,8 @@ class MissionMonthPoint(BaseModel):
 class MissionsPerMonthDashboard(BaseModel):
     """Missions clôturées par mois (12 derniers mois)."""
     points: list[MissionMonthPoint]
+
+
+class MissionsActivePerMonthDashboard(BaseModel):
+    """Missions en cours (actives) par mois (12 derniers mois)."""
+    points: list[MissionMonthPoint]

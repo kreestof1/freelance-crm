@@ -23,7 +23,7 @@ import {
     XAxis,
     YAxis,
 } from 'recharts'
-import { useForecastDashboard, useMissionsPerMonth, usePipelineDashboard } from '@/api/dashboard'
+import { useForecastDashboard, useMissionsActivePerMonth, useMissionsPerMonth, usePipelineDashboard } from '@/api/dashboard'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -403,6 +403,103 @@ function MissionsPerMonthSection() {
     )
 }
 
+// ── Missions actives par mois ──────────────────────────────────────────────────
+
+interface ActiveTooltipProps {
+    active?: boolean
+    payload?: Array<{ value: number }>
+    label?: string
+}
+
+function MissionsActiveTooltip({ active, payload, label }: ActiveTooltipProps) {
+    if (!active || !payload?.length) return null
+    const count = payload[0].value
+    return (
+        <Paper elevation={4} sx={{ p: 1.5, borderRadius: 2, minWidth: 140 }}>
+            <Typography variant="caption" fontWeight={700} display="block" mb={0.5}>
+                {label}
+            </Typography>
+            <Typography variant="caption" fontWeight={700} color="info.main">
+                {count} mission{count > 1 ? 's' : ''} en cours
+            </Typography>
+        </Paper>
+    )
+}
+
+function MissionsActivePerMonthSection() {
+    const theme = useTheme()
+    const { data, isLoading, isError } = useMissionsActivePerMonth()
+
+    if (isLoading) return <CircularProgress size={24} />
+    if (isError || !data) return <Alert severity="error">Erreur missions en cours</Alert>
+
+    const chartData = data.points.map((p) => ({ name: p.label, 'En cours': p.count }))
+    const maxCount = Math.max(...data.points.map((p) => p.count), 1)
+    // mois courant = dernier point
+    const currentIdx = data.points.length - 1
+
+    return (
+        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+                <Box>
+                    <Typography variant="subtitle1" fontWeight={700}>
+                        Missions en cours par mois
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        Projets actifs (chevauchant le mois) — 12 derniers mois
+                    </Typography>
+                </Box>
+                <Chip
+                    label={`${data.points[currentIdx]?.count ?? 0} ce mois`}
+                    size="small"
+                    sx={{
+                        bgcolor: alpha(theme.palette.info.main, 0.12),
+                        color: 'info.main',
+                        fontWeight: 700,
+                    }}
+                />
+            </Stack>
+
+            <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={chartData} barGap={4}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.palette.divider} />
+                    <XAxis
+                        dataKey="name"
+                        tick={{ fontSize: 11, fill: theme.palette.text.secondary }}
+                        axisLine={false}
+                        tickLine={false}
+                        interval={0}
+                        angle={-30}
+                        textAnchor="end"
+                        height={48}
+                    />
+                    <YAxis
+                        allowDecimals={false}
+                        domain={[0, Math.ceil(maxCount * 1.2) || 1]}
+                        tick={{ fontSize: 11, fill: theme.palette.text.secondary }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={28}
+                    />
+                    <Tooltip content={<MissionsActiveTooltip />} cursor={{ fill: alpha(theme.palette.info.main, 0.06) }} />
+                    <Bar dataKey="En cours" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                        {chartData.map((_entry, idx) => (
+                            <Cell
+                                key={idx}
+                                fill={
+                                    idx === currentIdx
+                                        ? theme.palette.info.main
+                                        : alpha(theme.palette.info.main, 0.5)
+                                }
+                            />
+                        ))}
+                    </Bar>
+                </BarChart>
+            </ResponsiveContainer>
+        </Paper>
+    )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function DashboardPage() {
@@ -421,6 +518,8 @@ export function DashboardPage() {
                 <ForecastSection />
                 <Divider />
                 <MissionsPerMonthSection />
+                <Divider />
+                <MissionsActivePerMonthSection />
             </Stack>
         </Box>
     )

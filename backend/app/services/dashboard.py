@@ -15,6 +15,7 @@ from app.schemas.dashboard import (
     ForecastDashboard,
     ForecastPeriod,
     MissionMonthPoint,
+    MissionsActivePerMonthDashboard,
     MissionsPerMonthDashboard,
     PipelineDashboard,
     StageAggregate,
@@ -184,3 +185,49 @@ async def get_missions_per_month(db: AsyncSession) -> MissionsPerMonthDashboard:
         for m in months
     ]
     return MissionsPerMonthDashboard(points=points)
+
+
+async def get_missions_active_per_month(db: AsyncSession) -> MissionsActivePerMonthDashboard:
+    """
+    Pour chaque mois des 12 derniers, retourne le nombre de projets
+    dont la plage [start_date, end_date] chevauche ce mois
+    (end_date NULL = toujours en cours).
+    """
+    today = date.today()
+    month_start = today.replace(day=1)
+
+    months = [_add_months(month_start, -i) for i in range(11, -1, -1)]
+    range_start = months[0]
+    range_end = _month_end(months[-1])
+
+    # Récupère tous les projets non supprimés qui démarrent avant la fin
+    # de la plage ET qui se terminent après le début (ou sans end_date).
+    q = (
+        select(Project.start_date, Project.end_date)
+        .where(
+            Project.deleted_at.is_(None),
+            Project.start_date.isnot(None),
+            Project.start_date <= range_end,
+            (Project.end_date.is_(None)) | (Project.end_date >= range_start),
+        )
+    )
+    rows = (await db.execute(q)).all()
+
+    # Calcul en Python des chevauchements
+    points = []
+    for m in months:
+        m_start = m
+        m_end = _month_end(m)
+        count = sum(
+            1
+            for r in rows
+            if r.start_date <= m_end and (r.end_date is None or r.end_date >= m_start)
+        )
+        points.append(
+            MissionMonthPoint(
+                label=_period_label(m),
+                month=f"{m.year:04d}-{m.month:02d}",
+                count=count,
+            )
+        )
+    return MissionsActivePerMonthDashboard(points=points)

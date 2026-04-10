@@ -42,12 +42,17 @@ export interface MissionsPerMonthDashboard {
     points: MissionMonthPoint[]
 }
 
+export interface MissionsActivePerMonthDashboard {
+    points: MissionMonthPoint[]
+}
+
 // ── API calls ─────────────────────────────────────────────────────────────────
 
 export const dashboardApi = {
     pipeline: () => apiClient.get<PipelineDashboard>('/dashboard/pipeline').then((r) => r.data),
     forecast: () => apiClient.get<ForecastDashboard>('/dashboard/forecast').then((r) => r.data),
     missionsPerMonth: () => apiClient.get<MissionsPerMonthDashboard>('/dashboard/missions-per-month').then((r) => r.data),
+    missionsActivePerMonth: () => apiClient.get<MissionsActivePerMonthDashboard>('/dashboard/missions-active-per-month').then((r) => r.data),
 }
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
@@ -72,6 +77,14 @@ export function useMissionsPerMonth() {
     return useQuery({
         queryKey: ['dashboard', 'missions-per-month'],
         queryFn: dashboardApi.missionsPerMonth,
+        staleTime: 60_000,
+    })
+}
+
+export function useMissionsActivePerMonth() {
+    return useQuery({
+        queryKey: ['dashboard', 'missions-active-per-month'],
+        queryFn: dashboardApi.missionsActivePerMonth,
         staleTime: 60_000,
     })
 }
