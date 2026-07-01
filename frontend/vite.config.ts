@@ -10,11 +10,12 @@ export default defineConfig({
         },
     },
     server: {
+        host: '0.0.0.0',
         port: 5173,
         proxy: {
             '/api': {
                 // In Docker the API container is reachable as 'api:8000';
-                // outside Docker (local pnpm dev) it falls back to localhost:8000.
+                // outside Docker (local npm dev) it falls back to localhost:8000.
                 target: process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:8000',
                 changeOrigin: true,
             },

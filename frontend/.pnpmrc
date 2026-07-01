@@ -1,0 +1,6 @@
+shamefully-hoist=true
+strict-peer-dependencies=false
+auto-install-peers=true
+ignore-scripts=false
+verify-store-integrity=false
+prune-store-k-highest=0
